@@ -1,12 +1,11 @@
 /**
  * components/Topbar.tsx
- * Topbar di atas area konten: judul halaman, status data, Kalkulator Beras, Demo RBU, dan Reset Data.
+ * Topbar di atas area konten: judul halaman, status data, Kalkulator Beras, dan Reset Data.
  */
 "use client";
 
 import { useState } from "react";
 import { useAppStore } from "@/store/appStore";
-import { demoMaster, demoBAST, demoBulogExport } from "@/lib/demoData";
 import { useToast } from "@/components/ui/Toast";
 import ModalKalkulatorBeras from "@/components/ui/ModalKalkulatorBeras";
 
@@ -20,27 +19,15 @@ const PAGE_LABELS: Record<string, string> = {
 };
 
 export default function Topbar() {
-  const activeTab            = useAppStore((s) => s.activeTab);
-  const toggleSidebar        = useAppStore((s) => s.toggleSidebar);
-  const masterRecords        = useAppStore((s) => s.masterRecords);
-  const bastRecords          = useAppStore((s) => s.bastRecords);
-  const poskoAktif           = useAppStore((s) => s.poskoAktif);
-  const setMasterRecords      = useAppStore((s) => s.setMasterRecords);
-  const setBastRecords        = useAppStore((s) => s.setBastRecords);
-  const setBulogExportRecords = useAppStore((s) => s.setBulogExportRecords);
-  const appendBastRecords     = useAppStore((s) => s.appendBastRecords);
-  const resetSemuaData       = useAppStore((s) => s.resetSemuaData);
+  const activeTab      = useAppStore((s) => s.activeTab);
+  const toggleSidebar  = useAppStore((s) => s.toggleSidebar);
+  const masterRecords  = useAppStore((s) => s.masterRecords);
+  const bastRecords    = useAppStore((s) => s.bastRecords);
+  const poskoAktif     = useAppStore((s) => s.poskoAktif);
+  const resetSemuaData = useAppStore((s) => s.resetSemuaData);
   const toast = useToast();
 
   const [showKalkulator, setShowKalkulator] = useState(false);
-
-  function handleDemoRBU() {
-    setMasterRecords(demoMaster);
-    setBastRecords([]);
-    appendBastRecords(demoBAST, "Rawa Badak Utara");
-    setBulogExportRecords(demoBulogExport);
-    toast.sukses('Data demo Rawa Badak Utara aktif! Coba cari "JAENAL ABIDIN" atau ketik "1095".');
-  }
 
   async function handleResetData() {
     if (confirm("Apakah Anda yakin ingin mengosongkan semua data ter-index (Master, BAST, Log, Audit) dari memori browser?")) {
@@ -104,17 +91,6 @@ export default function Topbar() {
               <path d="M16 10h.01M12 10h.01M8 10h.01M12 14h.01M8 14h.01M12 18h.01M8 18h.01" />
             </svg>
             <span className="hidden sm:inline">Kalkulator Beras</span>
-          </button>
-
-          {/* Demo button */}
-          <button
-            onClick={handleDemoRBU}
-            className="flex items-center gap-1.5 px-3 py-1.5 bg-amber-50 hover:bg-amber-100 active:scale-[0.96] text-amber-900 border border-amber-300 text-xs font-bold rounded-xl transition shadow-2xs"
-          >
-            <svg className="w-3.5 h-3.5 text-amber-600 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-              <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>
-            </svg>
-            Demo RBU
           </button>
 
           {/* Reset button */}
