@@ -58,12 +58,12 @@ npm install
 ### 3. Konfigurasi Environment Variables
 Buat file `.env.local` di root proyek dan tambahkan kredensial Supabase Anda:
 ```env
-NEXT_PUBLIC_SUPABASE_URL=https://iruetylbefvfxowiabxz.supabase.co
-NEXT_PUBLIC_SUPABASE_ANON_KEY=sb_publishable_dPAxXeGxuJpm3hK14W5zTA_gJsXeIMo
+NEXT_PUBLIC_SUPABASE_URL=your_supabase_project_url
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
 ```
 
 ### 4. Setup Database Supabase
-Salin skrip SQL pada file [`SUPABASE_SETUP.sql`](./SUPABASE_SETUP.sql) dan jalankan pada **SQL Editor** di dashboard Supabase Anda untuk membuat tabel real-time chat `chat_posko`.
+Jalankan skrip SQL pembuat tabel `chat_posko` di dashboard Supabase Anda (SQL Editor).
 
 ### 5. Menjalankan Server Development
 ```bash
@@ -74,8 +74,6 @@ Buka [http://localhost:3000](http://localhost:3000) pada browser Anda.
 ---
 
 ## 🔐 Akun Login Posko Kelurahan
-
-Daftar email akun resmi untuk 31 Kelurahan & Supervisor dapat dilihat pada file [`AKUN.md`](./AKUN.md).
 
 | Peran | Wilayah | Format Email Login | Hak Akses |
 |---|---|---|---|
