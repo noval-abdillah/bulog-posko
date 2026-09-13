@@ -66,6 +66,14 @@ export default function ChatPage() {
     localStorage.setItem(storageKey, val);
   }
 
+  function handleInputFocus() {
+    setTimeout(() => {
+      if (chatContainerRef.current) {
+        chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight;
+      }
+    }, 150);
+  }
+
   async function handleKirimPesan(e: React.FormEvent) {
     e.preventDefault();
     const text = pesanInput.trim();
@@ -132,7 +140,7 @@ export default function ChatPage() {
       </div>
 
       {/* Main Chat Card */}
-      <Card noPadding className="flex flex-col h-[calc(100dvh-220px)] sm:h-[70vh] min-h-[380px] sm:min-h-[500px] shadow-lg border border-slate-200 rounded-2xl overflow-hidden">
+      <Card noPadding className="flex flex-col h-[calc(100dvh-180px)] sm:h-[70vh] min-h-[350px] sm:min-h-[500px] shadow-lg border border-slate-200 rounded-2xl overflow-hidden">
         {/* Toolbar Filter & Identitas */}
         <div className="p-3.5 sm:p-4 bg-slate-50 border-b border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
           <div className="flex items-center gap-2 flex-wrap">
@@ -173,7 +181,7 @@ export default function ChatPage() {
         </div>
 
         {/* Message History Area */}
-        <div ref={chatContainerRef} className="flex-1 p-4 sm:p-5 overflow-y-auto space-y-4 bg-slate-50/50">
+        <div ref={chatContainerRef} className="flex-1 p-3.5 sm:p-5 overflow-y-auto overscroll-y-contain space-y-4 bg-slate-50/50">
           {filteredMessages.length === 0 ? (
             <div className="h-full flex flex-col items-center justify-center text-center p-6 text-slate-400">
               <span className="text-4xl mb-2">💬</span>
@@ -278,6 +286,7 @@ export default function ChatPage() {
             <input
               type="text"
               value={pesanInput}
+              onFocus={handleInputFocus}
               onChange={(e) => setPesanInput(e.target.value)}
               placeholder={`Tulis pesan dari Posko ${myPoskoName}...`}
               className="flex-1 px-4 py-2.5 border border-slate-300 rounded-xl text-xs font-medium text-slate-900 focus:outline-none focus:ring-2 focus:ring-bulog-blue/40"
