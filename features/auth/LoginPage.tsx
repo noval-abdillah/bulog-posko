@@ -8,6 +8,7 @@
 import { useState } from "react";
 import { loginPosko } from "@/lib/supabase";
 import { useAppStore } from "@/store/appStore";
+import StarfieldBackground from "@/components/StarfieldBackground";
 
 export default function LoginPage() {
   const [email, setEmail] = useState("");
@@ -44,8 +45,11 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-900 flex items-center justify-center p-4 sm:p-6 font-sans">
-      <div className="w-full max-w-md bg-white rounded-3xl shadow-2xl overflow-hidden border border-slate-800 animate-zoom-in-95">
+    <div className="min-h-screen bg-slate-950 flex items-center justify-center p-4 sm:p-6 font-sans relative overflow-hidden">
+      {/* 3D Starfield & Meteor Background */}
+      <StarfieldBackground />
+
+      <div className="w-full max-w-md bg-white/95 backdrop-blur-md rounded-3xl shadow-2xl overflow-hidden border border-slate-700/50 animate-zoom-in-95 relative z-10">
         {/* Header Banner */}
         <div className="bg-gradient-to-r from-slate-900 via-bulog-dark to-bulog-blue p-8 text-white text-center relative overflow-hidden">
           <div className="absolute inset-0 opacity-10 bg-[radial-gradient(#fff_1px,transparent_1px)] [background-size:16px_16px]" />
