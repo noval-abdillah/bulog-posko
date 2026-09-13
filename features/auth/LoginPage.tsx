@@ -50,8 +50,9 @@ export default function LoginPage() {
         <div className="bg-gradient-to-r from-slate-900 via-bulog-dark to-bulog-blue p-8 text-white text-center relative overflow-hidden">
           <div className="absolute inset-0 opacity-10 bg-[radial-gradient(#fff_1px,transparent_1px)] [background-size:16px_16px]" />
           <div className="relative z-10 space-y-2">
-            <div className="w-16 h-16 mx-auto bg-white/10 backdrop-blur-md rounded-2xl flex items-center justify-center border border-white/20 shadow-inner">
-              <span className="text-3xl">🏛️</span>
+            <div className="w-16 h-16 mx-auto bg-white/10 backdrop-blur-md rounded-2xl flex items-center justify-center border border-white/20 shadow-inner p-2">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src="/icon.png" alt="Logo Bulog" className="w-full h-full object-contain" />
             </div>
             <h1 className="text-xl font-black tracking-tight">PERUM BULOG</h1>
             <p className="text-xs font-semibold text-sky-200 uppercase tracking-widest">
