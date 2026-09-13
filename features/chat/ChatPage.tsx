@@ -37,7 +37,7 @@ export default function ChatPage() {
   const [filterTipe, setFilterTipe]   = useState<string>("SEMUA");
   const [kirimLoading, setKirimLoading] = useState(false);
 
-  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const chatContainerRef = useRef<HTMLDivElement>(null);
 
   const currentPoskoName = sessionPosko?.namaPosko || poskoAktif;
 
@@ -53,9 +53,11 @@ export default function ChatPage() {
     }
   }, [resetUnreadCount, currentPoskoName]);
 
-  // Auto-scroll ke paling bawah saat ada pesan baru
+  // Auto-scroll internal message container ke paling bawah saat ada pesan baru (tanpa scroll halaman outer)
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    if (chatContainerRef.current) {
+      chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight;
+    }
   }, [chatMessages]);
 
   function handleSaveNama(val: string) {
@@ -130,7 +132,7 @@ export default function ChatPage() {
       </div>
 
       {/* Main Chat Card */}
-      <Card noPadding className="flex flex-col h-[70vh] min-h-[500px] shadow-lg border border-slate-200 rounded-2xl overflow-hidden">
+      <Card noPadding className="flex flex-col h-[calc(100dvh-220px)] sm:h-[70vh] min-h-[380px] sm:min-h-[500px] shadow-lg border border-slate-200 rounded-2xl overflow-hidden">
         {/* Toolbar Filter & Identitas */}
         <div className="p-3.5 sm:p-4 bg-slate-50 border-b border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
           <div className="flex items-center gap-2 flex-wrap">
@@ -171,7 +173,7 @@ export default function ChatPage() {
         </div>
 
         {/* Message History Area */}
-        <div className="flex-1 p-4 sm:p-5 overflow-y-auto space-y-4 bg-slate-50/50">
+        <div ref={chatContainerRef} className="flex-1 p-4 sm:p-5 overflow-y-auto space-y-4 bg-slate-50/50">
           {filteredMessages.length === 0 ? (
             <div className="h-full flex flex-col items-center justify-center text-center p-6 text-slate-400">
               <span className="text-4xl mb-2">💬</span>
@@ -230,7 +232,6 @@ export default function ChatPage() {
               );
             })
           )}
-          <div ref={messagesEndRef} />
         </div>
 
         {/* Input Form Bar */}
