@@ -39,16 +39,19 @@ export default function ChatPage() {
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  // Inisialisasi nama petugas dari localStorage atau session
+  const currentPoskoName = sessionPosko?.namaPosko || poskoAktif;
+
+  // Inisialisasi nama petugas khusus posko ini dari localStorage atau default session
   useEffect(() => {
     resetUnreadCount();
-    const savedName = localStorage.getItem("namaPetugasChat") ?? "";
+    const storageKey = `namaPetugasChat_${currentPoskoName}`;
+    const savedName = localStorage.getItem(storageKey) ?? "";
     if (savedName) {
       setNamaPetugas(savedName);
-    } else if (sessionPosko?.namaPosko) {
-      setNamaPetugas(`Petugas ${sessionPosko.namaPosko}`);
+    } else {
+      setNamaPetugas(`Petugas ${currentPoskoName}`);
     }
-  }, [resetUnreadCount, sessionPosko]);
+  }, [resetUnreadCount, currentPoskoName]);
 
   // Load riwayat chat & subscribe real-time
   useEffect(() => {
@@ -72,7 +75,8 @@ export default function ChatPage() {
 
   function handleSaveNama(val: string) {
     setNamaPetugas(val);
-    localStorage.setItem("namaPetugasChat", val);
+    const storageKey = `namaPetugasChat_${currentPoskoName}`;
+    localStorage.setItem(storageKey, val);
   }
 
   async function handleKirimPesan(e: React.FormEvent) {
@@ -80,7 +84,7 @@ export default function ChatPage() {
     const text = pesanInput.trim();
     if (!text) return;
 
-    const currentPosko = sessionPosko?.namaPosko || poskoAktif;
+    const currentPosko = currentPoskoName;
     const currentKec   = sessionPosko?.kecamatan || "Jakarta Utara";
     const currentNama  = namaPetugas.trim() || `Petugas ${currentPosko}`;
 
