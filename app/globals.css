@@ -54,6 +54,14 @@ body {
   animation: toastSlideIn 260ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 
+/* Safe Area Insets for iOS (iPhone Notch & Home Indicator) */
+.pt-safe {
+  padding-top: max(env(safe-area-inset-top, 0px), 0px);
+}
+.pb-safe {
+  padding-bottom: max(env(safe-area-inset-bottom, 0px), 0px);
+}
+
 /* Prevent auto-zoom on mobile inputs (< 16px triggers iOS/Android auto-zoom) */
 @media (max-width: 768px) {
   input[type="text"],

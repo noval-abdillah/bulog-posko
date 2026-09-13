@@ -38,8 +38,9 @@ export default function Topbar() {
 
   return (
     <>
-      <header className="h-14 bg-white border-b border-slate-200 flex items-center justify-between px-4 lg:px-6 flex-shrink-0 sticky top-0 z-30">
-        <div className="flex items-center gap-3">
+      <header className="pt-safe bg-white border-b border-slate-200 flex flex-col justify-center flex-shrink-0 sticky top-0 z-30">
+        <div className="h-14 flex items-center justify-between px-4 lg:px-6 w-full">
+          <div className="flex items-center gap-3">
           {/* Hamburger */}
           <button
             onClick={toggleSidebar}
@@ -105,6 +106,7 @@ export default function Topbar() {
               </svg>
             </button>
           )}
+        </div>
         </div>
       </header>
 

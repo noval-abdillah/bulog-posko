@@ -246,7 +246,7 @@ export default function Sidebar() {
 
       {/* Mobile Drawer */}
       <aside
-        className={`lg:hidden fixed left-0 top-0 bottom-0 z-50 w-64 bg-bulog-blue flex flex-col transition-transform duration-200
+        className={`lg:hidden fixed left-0 top-0 bottom-0 z-50 w-64 bg-bulog-blue flex flex-col pt-safe pb-safe transition-transform duration-200
           ${sidebarOpen ? "translate-x-0" : "-translate-x-full"}`}
       >
         <div className="flex items-center justify-between px-4 pt-4 pb-2">

@@ -133,7 +133,7 @@ export default function AppShell() {
   }
 
   return (
-    <div className="flex h-screen overflow-hidden bg-slate-50 font-sans">
+    <div className="flex h-screen h-[100dvh] overflow-hidden bg-slate-50 font-sans">
       <Sidebar />
 
       {/* Main area */}
