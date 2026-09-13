@@ -1,36 +1,107 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# 🏛️ Sistem Posko Verifikasi, Audit, & Rekonsiliasi Bansos PBP - Perum BULOG
 
-## Getting Started
+[![Next.js](https://img.shields.io/badge/Next.js-16.3.4-black?logo=next.js)](https://nextjs.org/)
+[![React](https://img.shields.io/badge/React-19-blue?logo=react)](https://react.dev/)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5.0-blue?logo=typescript)](https://www.typescriptlang.org/)
+[![Supabase](https://img.shields.io/badge/Supabase-Realtime%20Auth-emerald?logo=supabase)](https://supabase.com/)
+[![Tailwind CSS](https://img.shields.io/badge/Tailwind-v4-38bdf8?logo=tailwindcss)](https://tailwindcss.com/)
+[![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 
-First, run the development server:
+**`bulog-posko`** adalah aplikasi ERP operasional lapangan berbasis web (*Hybrid Client-Side & Cloud Real-Time*) yang dirancang khusus untuk mempermudah, mempercepat, dan menjamin ketepatan penyaluran Bantuan Pangan Beras (PBP) 30 Kg per Keluarga Penerima Manfaat (KPM) di tingkat posko kelurahan.
 
+Sistem ini digunakan oleh Petugas Posko Kelurahan & Supervisor Perum BULOG Kantor Cabang Jakarta Utara yang membawahi **31 Kelurahan di 6 Kecamatan** (Koja, Cilincing, Kelapa Gading, Pademangan, Penjaringan, Tanjung Priok).
+
+---
+
+## 🌟 Keunggulan Utama & Fitur Unggulan
+
+- **🔐 Autentikasi Akses & Isolasi Ruang Kerja (Workspace Isolation):** Terproteksi oleh 33 Akun Resmi (31 Kelurahan + 1 Supervisor Pusat + 1 Admin) via Supabase Auth & Row Level Security (RLS). Data tiap posko kelurahan terisolasi ketat.
+- **💬 Chat Real-Time Multi-Device Antar Posko:** Komunikasi instan antar-perangkat via WebSocket Supabase Realtime dengan visual badge per kecamatan dan filter jenis pesan (💬 Normal, ⚠️ Peringatan, ℹ️ Info).
+- **📄 Ekstraksi Presisi PDF BAST & RT/RW Cerdas:** Parser PDF yang mengekstrak NIK 16-digit, No. KK 16-digit, No. Urut Undangan, serta mendeteksi berbagai format penulisan RT/RW (`RT 005/RW 003`, `RT.05 RW.03`, `05/03`) dari berkas BAST PDF.
+- **⚡ Triple-Match 3-Way Engine & Smart Sorting:** Menandingkan Master Data (142k DTKS), BAST/Log Posko, dan 2 file ekspor resmi Web Bulog (*Sudah* & *Belum Diserahkan*). Sisa PBP diurutkan berdasarkan **No. Urut Undangan BAST**.
+- **📱 Generator WhatsApp Reminder Pintar:** Menyusun draft pengingat WA per RT/RW dan **Rekapitulasi Semua RT/RW** (termasuk warga berstatus `RT — / RW —` belum teridentifikasi) dengan switcher wilayah langsung di dalam modal.
+- **🧾 Generator Dokumen SPTJM & PDF Overlay Resmi:** Pembuatan form SPTJM PBP Pengganti siap cetak (HTML/CSS) dan PDF resmi terisi (`/SPTJM-Pengganti.pdf` via *pdf-lib*).
+- **📊 Laporan Excel Korporat Berwarna (ExcelJS Engine):** Ekspor Excel (`.xlsx`) profesional dengan Kop BULOG Navy/Blue, auto-fit width, zebra striping, dan format NIK/KK murni teks (anti-`3.17203E+15`).
+- **📦 Web Worker Background Engine:** Memproses pembacaan Excel Master 142.000 baris di background thread tanpa membuat UI freeze.
+
+---
+
+## 🛠️ Stack Teknis
+
+- **Web Framework:** [Next.js 16.3.4](https://nextjs.org/) (App Router & Turbopack)
+- **UI Library & Styling:** [React 19](https://react.dev/), [Tailwind CSS v4](https://tailwindcss.com/) (Custom BULOG Navy/Blue Theme `#0B3B73`, `#07264B`)
+- **Language:** [TypeScript 5](https://www.typescriptlang.org/)
+- **Cloud Backend & Realtime:** [Supabase](https://supabase.com/) (Auth, PostgreSQL, Realtime WebSocket)
+- **State Management:** [Zustand 5](https://zustand-demo.pmnd.rs/) (dengan IndexedDB Persistent Storage `BulogPoskoDB` v2)
+- **Document Processors:** `exceljs`, `xlsx` (SheetJS), `pdf-lib`, `pdfjs-dist`
+
+---
+
+## 🚀 Panduan Memulai (Getting Started)
+
+### 1. Prasyarat
+- Node.js versi `18.x` atau lebih baru
+- npm / yarn / pnpm
+
+### 2. Instalasi Proyek
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+# Clone repository
+git clone https://github.com/noval-abdillah/bulog-posko.git
+
+# Masuk ke direktori proyek
+cd bulog-posko
+
+# Install dependensi
+npm install
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+### 3. Konfigurasi Environment Variables
+Buat file `.env.local` di root proyek dan tambahkan kredensial Supabase Anda:
+```env
+NEXT_PUBLIC_SUPABASE_URL=https://iruetylbefvfxowiabxz.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=sb_publishable_dPAxXeGxuJpm3hK14W5zTA_gJsXeIMo
+```
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+### 4. Setup Database Supabase
+Salin skrip SQL pada file [`SUPABASE_SETUP.sql`](./SUPABASE_SETUP.sql) dan jalankan pada **SQL Editor** di dashboard Supabase Anda untuk membuat tabel real-time chat `chat_posko`.
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+### 5. Menjalankan Server Development
+```bash
+npm run dev
+```
+Buka [http://localhost:3000](http://localhost:3000) pada browser Anda.
 
-## Learn More
+---
 
-To learn more about Next.js, take a look at the following resources:
+## 🔐 Akun Login Posko Kelurahan
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+Daftar email akun resmi untuk 31 Kelurahan & Supervisor dapat dilihat pada file [`AKUN.md`](./AKUN.md).
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+| Peran | Wilayah | Format Email Login | Hak Akses |
+|---|---|---|---|
+| Petugas Kelurahan | 31 Kelurahan Jakut | `kelurahan.[namakelurahan]@bulog-jakut.id` | Terisolasi per Kelurahan |
+| Supervisor Pusat | Kota Jakarta Utara | `supervisor@bulog-jakut.id` | Akses Seluruh 31 Posko |
 
-## Deploy on Vercel
+---
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## 🌐 Deploy ke Vercel
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+1. Push repository ke GitHub.
+2. Import repository di [Vercel Dashboard](https://vercel.com/new).
+3. Tambahkan **Environment Variables**:
+   - `NEXT_PUBLIC_SUPABASE_URL`
+   - `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+4. Klik **Deploy**.
+
+---
+
+## 👨‍💻 Pengembang
+
+Dikembangkan oleh **Noval Abdillah**  
+*Perum BULOG — Sistem Posko Verifikasi & Audit Bansos PBP Kota Jakarta Utara*
+
+---
+
+## 📜 Lisensi
+
+Proyek ini dilesensikan di bawah [MIT License](LICENSE).
