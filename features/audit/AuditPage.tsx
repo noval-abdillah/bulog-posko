@@ -181,23 +181,27 @@ export default function AuditPage() {
   };
 
   const scopedSudahSerah = useMemo(() => {
-    if (isSuper) return bulogSudahSerahRecords;
-    return bulogSudahSerahRecords.filter((r) => isPoskoMatch(r.kelurahan || ""));
+    if (isSuper || bulogSudahSerahRecords.length === 0) return bulogSudahSerahRecords;
+    const filtered = bulogSudahSerahRecords.filter((r) => isPoskoMatch(r.kelurahan || ""));
+    return filtered.length > 0 ? filtered : bulogSudahSerahRecords;
   }, [bulogSudahSerahRecords, cleanPoskoStr, isSuper]);
 
   const scopedBelumSerah = useMemo(() => {
-    if (isSuper) return bulogBelumSerahRecords;
-    return bulogBelumSerahRecords.filter((r) => isPoskoMatch(r.kelurahan || ""));
+    if (isSuper || bulogBelumSerahRecords.length === 0) return bulogBelumSerahRecords;
+    const filtered = bulogBelumSerahRecords.filter((r) => isPoskoMatch(r.kelurahan || ""));
+    return filtered.length > 0 ? filtered : bulogBelumSerahRecords;
   }, [bulogBelumSerahRecords, cleanPoskoStr, isSuper]);
 
   const scopedExportRecords = useMemo(() => {
-    if (isSuper) return bulogExportRecords;
-    return bulogExportRecords.filter((r) => isPoskoMatch(r.kelurahan || ""));
+    if (isSuper || bulogExportRecords.length === 0) return bulogExportRecords;
+    const filtered = bulogExportRecords.filter((r) => isPoskoMatch(r.kelurahan || ""));
+    return filtered.length > 0 ? filtered : bulogExportRecords;
   }, [bulogExportRecords, cleanPoskoStr, isSuper]);
 
   const scopedBastRecords = useMemo(() => {
-    if (isSuper) return bastRecords;
-    return bastRecords.filter((b) => isPoskoMatch(b.KELURAHAN_BAST || ""));
+    if (isSuper || bastRecords.length === 0) return bastRecords;
+    const filtered = bastRecords.filter((b) => isPoskoMatch(b.KELURAHAN_BAST || ""));
+    return filtered.length > 0 ? filtered : bastRecords;
   }, [bastRecords, cleanPoskoStr, isSuper]);
 
   const [auditModeTab, setAuditModeTab] = useState<ModeAuditTab>("selisih3way");
@@ -589,7 +593,7 @@ export default function AuditPage() {
           pekerjaan_pengganti: rawPekerjaanPengganti,
           no_bast: rawNoBast,
           notes: String(c["notes"] || c["alasan"] || "—").trim(),
-          kelurahan: String(c["kelurahan"] || c["kelname"] || poskoAktif).trim(),
+          kelurahan: (readBulogText(c, "kelurahan", "kelname", "namakelurahan", "desakelurahan", "kel", "desa", "kelurahanpenyaluran") || poskoAktif).trim(),
           status_serah: rawStatusSerah,
           verification_status: rawVerificationStatus,
           _sourceFile: file.name,
@@ -687,7 +691,7 @@ export default function AuditPage() {
           pekerjaan_pengganti: rawPekerjaanPengganti,
           no_bast: rawNoBast,
           notes: String(c["notes"] || c["alasan"] || "—").trim(),
-          kelurahan: String(c["kelurahan"] || c["kelname"] || poskoAktif).trim(),
+          kelurahan: (readBulogText(c, "kelurahan", "kelname", "namakelurahan", "desakelurahan", "kel", "desa", "kelurahanpenyaluran") || poskoAktif).trim(),
           status_serah: rawStatusSerah,
           verification_status: rawVerificationStatus,
           _sourceFile: file.name,
