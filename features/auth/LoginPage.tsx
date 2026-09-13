@@ -85,7 +85,7 @@ export default function LoginPage() {
               onChange={(e) => setEmail(e.target.value)}
               placeholder="kelurahan.rawabadakutara@bulog-jakut.id"
               required
-              className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-bulog-blue transition"
+              className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-base sm:text-xs font-medium text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-bulog-blue transition"
             />
             <p className="text-[10px] text-slate-400">Gunakan email resmi kelurahan/supervisor yang terdaftar.</p>
           </div>
@@ -100,7 +100,7 @@ export default function LoginPage() {
               onChange={(e) => setPassword(e.target.value)}
               placeholder="••••••••"
               required
-              className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-bulog-blue transition"
+              className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-base sm:text-xs font-medium text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-bulog-blue transition"
             />
           </div>
 

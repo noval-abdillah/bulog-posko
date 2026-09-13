@@ -1,10 +1,17 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
   title: "Sistem Posko Verifikasi & Audit Bansos PBP - Perum BULOG",
   description: "Sistem Posko Verifikasi & Audit Bansos PBP Bulog - Dikembangkan oleh Noval Abdillah",
   authors: [{ name: "Noval Abdillah" }],
+};
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 1,
+  userScalable: false,
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
