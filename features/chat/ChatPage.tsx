@@ -53,21 +53,6 @@ export default function ChatPage() {
     }
   }, [resetUnreadCount, currentPoskoName]);
 
-  // Load riwayat chat & subscribe real-time
-  useEffect(() => {
-    ambilRiwayatChat(150).then((msgs) => {
-      setChatMessages(msgs);
-    });
-
-    const channel = subscribeChat((newMsg) => {
-      tambahChatMessage(newMsg);
-    });
-
-    return () => {
-      channel.unsubscribe();
-    };
-  }, [setChatMessages, tambahChatMessage]);
-
   // Auto-scroll ke paling bawah saat ada pesan baru
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });

@@ -5,10 +5,12 @@
 "use client";
 
 import { useAppStore } from "@/store/appStore";
+import type { ActiveTab } from "@/types";
 
 export function ToastContainer() {
   const toasts = useAppStore((s) => s.toasts);
   const hapusToast = useAppStore((s) => s.hapusToast);
+  const setActiveTab = useAppStore((s) => s.setActiveTab);
 
   const styles = {
     success: "bg-emerald-600 text-white",
@@ -29,15 +31,26 @@ export function ToastContainer() {
       {toasts.map((t) => (
         <div
           key={t.id}
-          className={`flex items-start gap-3 px-4 py-3 rounded-xl shadow-lg text-sm font-medium pointer-events-auto animate-toast-slide ${styles[t.type]}`}
+          onClick={() => {
+            if (t.onClickTab) {
+              setActiveTab(t.onClickTab);
+              hapusToast(t.id);
+            }
+          }}
+          className={`flex items-start gap-3 px-4 py-3 rounded-xl shadow-lg text-sm font-medium pointer-events-auto animate-toast-slide ${
+            styles[t.type]
+          } ${t.onClickTab ? "cursor-pointer hover:opacity-95" : ""}`}
         >
           <svg className="w-4 h-4 flex-shrink-0 mt-0.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
             {icons[t.type]}
           </svg>
           <span className="flex-1 leading-snug">{t.message}</span>
           <button
-            onClick={() => hapusToast(t.id)}
-            className="flex-shrink-0 opacity-70 hover:opacity-100"
+            onClick={(e) => {
+              e.stopPropagation();
+              hapusToast(t.id);
+            }}
+            className="flex-shrink-0 opacity-70 hover:opacity-100 p-0.5"
             aria-label="Tutup notifikasi"
           >
             <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -53,9 +66,9 @@ export function ToastContainer() {
 export function useToast() {
   const tambahToast = useAppStore((s) => s.tambahToast);
   return {
-    sukses: (msg: string) => tambahToast("success", msg),
-    error:  (msg: string) => tambahToast("error", msg),
-    peringatan: (msg: string) => tambahToast("warning", msg),
-    info:   (msg: string) => tambahToast("info", msg),
+    sukses: (msg: string, onClickTab?: ActiveTab) => tambahToast("success", msg, onClickTab),
+    error:  (msg: string, onClickTab?: ActiveTab) => tambahToast("error", msg, onClickTab),
+    peringatan: (msg: string, onClickTab?: ActiveTab) => tambahToast("warning", msg, onClickTab),
+    info:   (msg: string, onClickTab?: ActiveTab) => tambahToast("info", msg, onClickTab),
   };
 }

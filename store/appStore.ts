@@ -110,7 +110,7 @@ interface AppState {
   toggleSidebar: () => void;
   setSidebarOpen: (open: boolean) => void;
   setPoskoAktif: (posko: string) => void;
-  tambahToast: (type: ToastItem["type"], message: string) => void;
+  tambahToast: (type: ToastItem["type"], message: string, onClickTab?: ActiveTab) => void;
   hapusToast: (id: string) => void;
 
   /* --- aksi data & storage --- */
@@ -193,12 +193,12 @@ export const useAppStore = create<AppState>((set, get) => ({
   setSidebarOpen: (open) => set({ sidebarOpen: open }),
   setPoskoAktif: (posko) => set({ poskoAktif: posko }),
 
-  tambahToast: (type, message) => {
+  tambahToast: (type, message, onClickTab) => {
     const id = Math.random().toString(36).slice(2);
-    set((s) => ({ toasts: [...s.toasts, { id, type, message }] }));
+    set((s) => ({ toasts: [...s.toasts, { id, type, message, onClickTab }] }));
     setTimeout(() => {
       set((s) => ({ toasts: s.toasts.filter((t) => t.id !== id) }));
-    }, 4000);
+    }, 6000);
   },
 
   hapusToast: (id) =>

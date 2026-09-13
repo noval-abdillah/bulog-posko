@@ -122,6 +122,7 @@ export interface ToastItem {
   id: string;
   type: "success" | "error" | "warning" | "info";
   message: string;
+  onClickTab?: ActiveTab;
 }
 
 export type KategoriSelisih =

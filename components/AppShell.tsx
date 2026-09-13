@@ -6,7 +6,8 @@
 
 import { useEffect, useState } from "react";
 import { useAppStore } from "@/store/appStore";
-import { getSessionPosko, supabase } from "@/lib/supabase";
+import { getSessionPosko, supabase, subscribeChat, ambilRiwayatChat } from "@/lib/supabase";
+import { mainkanSuaraChat } from "@/lib/audio";
 import Sidebar from "@/components/Sidebar";
 import Topbar from "@/components/Topbar";
 import { ToastContainer } from "@/components/ui/Toast";
@@ -21,17 +22,56 @@ import PanduanPage from "@/features/panduan/PanduanPage";
 import ChatPage from "@/features/chat/ChatPage";
 
 export default function AppShell() {
-  const activeTab        = useAppStore((s) => s.activeTab);
-  const muatDataDariDB   = useAppStore((s) => s.muatDataDariDB);
-  const sessionPosko     = useAppStore((s) => s.sessionPosko);
-  const setSessionPosko  = useAppStore((s) => s.setSessionPosko);
-  const setPoskoAktif     = useAppStore((s) => s.setPoskoAktif);
+  const activeTab         = useAppStore((s) => s.activeTab);
+  const muatDataDariDB    = useAppStore((s) => s.muatDataDariDB);
+  const sessionPosko      = useAppStore((s) => s.sessionPosko);
+  const setSessionPosko   = useAppStore((s) => s.setSessionPosko);
+  const setPoskoAktif      = useAppStore((s) => s.setPoskoAktif);
+  const setChatMessages   = useAppStore((s) => s.setChatMessages);
+  const tambahChatMessage = useAppStore((s) => s.tambahChatMessage);
+  const tambahToast       = useAppStore((s) => s.tambahToast);
 
   const [checkingAuth, setCheckingAuth] = useState(true);
 
   useEffect(() => {
     muatDataDariDB();
   }, [muatDataDariDB]);
+
+  // Global Chat Real-time Listener & Pop-up Notification
+  useEffect(() => {
+    if (!sessionPosko?.isLoggedIn) return;
+
+    // Load initial chat history
+    ambilRiwayatChat(150).then((msgs) => {
+      setChatMessages(msgs);
+    });
+
+    const channel = subscribeChat((newMsg) => {
+      tambahChatMessage(newMsg);
+
+      const isMyMessage =
+        newMsg.posko.toLowerCase() === sessionPosko.namaPosko.toLowerCase();
+
+      if (!isMyMessage) {
+        mainkanSuaraChat();
+        const toastType = newMsg.tipe === "peringatan" ? "warning" : "info";
+        const truncatedPesan =
+          newMsg.pesan.length > 60
+            ? `${newMsg.pesan.slice(0, 60)}...`
+            : newMsg.pesan;
+
+        tambahToast(
+          toastType,
+          `💬 Pesan Baru [Posko ${newMsg.posko}]: "${truncatedPesan}" (Klik untuk buka Chat)`,
+          "chat"
+        );
+      }
+    });
+
+    return () => {
+      channel.unsubscribe();
+    };
+  }, [sessionPosko, setChatMessages, tambahChatMessage, tambahToast]);
 
   useEffect(() => {
     let isMounted = true;
