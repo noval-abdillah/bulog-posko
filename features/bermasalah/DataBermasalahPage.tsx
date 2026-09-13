@@ -19,6 +19,7 @@ export default function DataBermasalahPage() {
   const imporReports             = useAppStore((s) => s.imporReports);
   const bersihkanDataBermasalah = useAppStore((s) => s.bersihkanDataBermasalah);
   const poskoAktif               = useAppStore((s) => s.poskoAktif);
+  const setActiveTab             = useAppStore((s) => s.setActiveTab);
   const toast = useToast();
 
   const [filterSumber, setFilterSumber] = useState<string>("SEMUA");
@@ -77,7 +78,48 @@ export default function DataBermasalahPage() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="relative">
+      {/* Floating Maintenance Overlay Modal */}
+      <div className="absolute inset-0 z-30 flex items-center justify-center p-4">
+        <div className="bg-white/95 backdrop-blur-md rounded-3xl shadow-2xl border border-amber-300 max-w-md w-full p-6 text-center space-y-4 animate-zoom-in-95 sticky top-20">
+          <div className="w-16 h-16 mx-auto bg-amber-100 text-amber-700 rounded-2xl flex items-center justify-center text-3xl shadow-xs">
+            🚧
+          </div>
+          <div>
+            <span className="px-3 py-1 bg-amber-100 text-amber-900 rounded-full text-[10px] font-black uppercase tracking-wider">
+              Dalam Tahap Pengembangan / Maintenance
+            </span>
+            <h2 className="text-lg font-black text-slate-900 mt-2">
+              Modul Pelacakan Data Bermasalah
+            </h2>
+            <p className="text-xs text-slate-600 mt-1.5 leading-relaxed">
+              Modul pelacakan &amp; audit jejak data bermasalah sedang ditingkatkan oleh Tim Pengembang untuk mendukung integrasi otomatisasi data tingkat lanjut.
+            </p>
+          </div>
+
+          <div className="pt-2 flex flex-col sm:flex-row gap-2">
+            <Button
+              variant="primary"
+              size="sm"
+              className="flex-1"
+              onClick={() => setActiveTab("posko")}
+            >
+              Kembali ke Meja Posko
+            </Button>
+            <Button
+              variant="secondary"
+              size="sm"
+              className="flex-1"
+              onClick={() => setActiveTab("dashboard")}
+            >
+              Kembali ke Dashboard
+            </Button>
+          </div>
+        </div>
+      </div>
+
+      {/* Blurred Main Background Content */}
+      <div className="space-y-6 blur-sm pointer-events-none select-none opacity-40">
       {/* Page Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
@@ -318,6 +360,7 @@ export default function DataBermasalahPage() {
           </table>
         </div>
       </Card>
+      </div>
     </div>
   );
 }

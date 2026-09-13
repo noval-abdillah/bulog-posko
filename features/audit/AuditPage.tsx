@@ -167,8 +167,38 @@ export default function AuditPage() {
   const riwayatEksporBulog       = useAppStore((s) => s.riwayatEksporBulog);
   const tambahRiwayatEksporBulog   = useAppStore((s) => s.tambahRiwayatEksporBulog);
   const poskoAktif               = useAppStore((s) => s.poskoAktif);
+  const sessionPosko             = useAppStore((s) => s.sessionPosko);
   const { bacaExcelSheet0 }       = useExcelImport();
   const toast = useToast();
+
+  const isSuper = Boolean(sessionPosko?.isSuper);
+  const cleanPoskoStr = cleanStr(poskoAktif);
+
+  const isPoskoMatch = (kel: string) => {
+    const cleanKel = cleanStr(kel || "");
+    if (!cleanKel || !cleanPoskoStr) return true;
+    return cleanKel === cleanPoskoStr || cleanKel.includes(cleanPoskoStr) || cleanPoskoStr.includes(cleanKel);
+  };
+
+  const scopedSudahSerah = useMemo(() => {
+    if (isSuper) return bulogSudahSerahRecords;
+    return bulogSudahSerahRecords.filter((r) => isPoskoMatch(r.kelurahan || ""));
+  }, [bulogSudahSerahRecords, cleanPoskoStr, isSuper]);
+
+  const scopedBelumSerah = useMemo(() => {
+    if (isSuper) return bulogBelumSerahRecords;
+    return bulogBelumSerahRecords.filter((r) => isPoskoMatch(r.kelurahan || ""));
+  }, [bulogBelumSerahRecords, cleanPoskoStr, isSuper]);
+
+  const scopedExportRecords = useMemo(() => {
+    if (isSuper) return bulogExportRecords;
+    return bulogExportRecords.filter((r) => isPoskoMatch(r.kelurahan || ""));
+  }, [bulogExportRecords, cleanPoskoStr, isSuper]);
+
+  const scopedBastRecords = useMemo(() => {
+    if (isSuper) return bastRecords;
+    return bastRecords.filter((b) => isPoskoMatch(b.KELURAHAN_BAST || ""));
+  }, [bastRecords, cleanPoskoStr, isSuper]);
 
   const [auditModeTab, setAuditModeTab] = useState<ModeAuditTab>("selisih3way");
 
@@ -198,43 +228,34 @@ export default function AuditPage() {
   const [showWAModal, setShowWAModal]           = useState(false);
 
   const recordsUntukAuditFisik = useMemo(() => {
-    if (bulogSudahSerahRecords.length > 0 || bulogBelumSerahRecords.length > 0) {
-      return [...bulogSudahSerahRecords, ...bulogBelumSerahRecords];
+    if (scopedSudahSerah.length > 0 || scopedBelumSerah.length > 0) {
+      return [...scopedSudahSerah, ...scopedBelumSerah];
     }
-    return bulogExportRecords;
-  }, [bulogSudahSerahRecords, bulogBelumSerahRecords, bulogExportRecords]);
+    return scopedExportRecords;
+  }, [scopedSudahSerah, scopedBelumSerah, scopedExportRecords]);
 
   const statistik = hitungStatistikBulog(recordsUntukAuditFisik);
 
   // Evaluasi Selisih 3-Way
   const selisihRows = useMemo(() => {
     return analisaSelisih3Way(
-      bulogExportRecords,
+      scopedExportRecords,
       masterRecords,
-      bastRecords,
+      scopedBastRecords,
       logPelayanan,
       masterByNIK,
       masterByName,
       poskoAktif,
-      bulogSudahSerahRecords,
-      bulogBelumSerahRecords
+      scopedSudahSerah,
+      scopedBelumSerah
     );
-  }, [bulogExportRecords, masterRecords, bastRecords, logPelayanan, masterByNIK, masterByName, bulogSudahSerahRecords, bulogBelumSerahRecords]);
+  }, [scopedExportRecords, masterRecords, scopedBastRecords, logPelayanan, masterByNIK, masterByName, poskoAktif, scopedSudahSerah, scopedBelumSerah]);
 
-  const semuaRows = useMemo(() => buildSemuaAuditRows(recordsUntukAuditFisik, bastRecords), [recordsUntukAuditFisik, bastRecords]);
+  const semuaRows = useMemo(() => buildSemuaAuditRows(recordsUntukAuditFisik, scopedBastRecords), [recordsUntukAuditFisik, scopedBastRecords]);
 
   const belumAmbilRows = useMemo<SelisihAuditRow[]>(() => {
-    const cleanPosko = cleanStr(poskoAktif);
-
-    const isPoskoMatch = (kel: string) => {
-      const cleanKel = cleanStr(kel || "");
-      if (!cleanKel || !cleanPosko) return true;
-      return cleanKel === cleanPosko || cleanKel.includes(cleanPosko) || cleanPosko.includes(cleanKel);
-    };
-
-    if (bulogBelumSerahRecords.length > 0) {
-      const filtered = bulogBelumSerahRecords.filter((r) => isPoskoMatch(r.kelurahan || ""));
-      const recordsToUse = filtered.length > 0 ? filtered : bulogBelumSerahRecords;
+    if (scopedBelumSerah.length > 0) {
+      const recordsToUse = scopedBelumSerah;
 
       const mapped = recordsToUse.map((r) => {
         const nikClean = fixNIK(r.nik) || cleanNum(r.nik);
@@ -244,7 +265,7 @@ export default function AuditPage() {
           || (namaClean ? masterByName.get(namaClean)?.[0] ?? null : null);
 
         const bastMatch = (nikClean ? bastByNIK.get(nikClean) ?? null : null)
-          || (namaClean ? bastRecords.find((b) => cleanStr(b.NAMA) === namaClean) ?? null : null);
+          || (namaClean ? scopedBastRecords.find((b) => cleanStr(b.NAMA) === namaClean) ?? null : null);
 
         let finalRt = String(r.rt || "").trim();
         let finalRw = String(r.rw || "").trim();
@@ -306,7 +327,7 @@ export default function AuditPage() {
       if (b.noUrut != null) return 1;
       return a.nama.localeCompare(b.nama);
     });
-  }, [bulogBelumSerahRecords, selisihRows, masterByNIK, bastByNIK, poskoAktif]);
+  }, [scopedBelumSerah, selisihRows, masterByNIK, bastByNIK, masterByName, scopedBastRecords, poskoAktif]);
 
   const daftarWilayahSelisih = useMemo<WilayahSelisihOption[]>(() => {
     const grouped = new Map<string, WilayahSelisihOption>();
