@@ -33,9 +33,19 @@ async function callAI(action: string, payload: unknown, apiKey?: string, model?:
   return data.result as string;
 }
 
+function extractJsonFromText(text: string): string {
+  let clean = text.replace(/```json/gi, "").replace(/```/g, "").trim();
+  const firstBrace = clean.indexOf("{");
+  const lastBrace = clean.lastIndexOf("}");
+  if (firstBrace !== -1 && lastBrace !== -1 && lastBrace > firstBrace) {
+    clean = clean.slice(firstBrace, lastBrace + 1);
+  }
+  return clean;
+}
+
 export async function aiScanOcrKtp(imageBase64: string, apiKey?: string, model?: string): Promise<OcrKtpResult> {
   const text = await callAI("ocr_ktp", { imageBase64 }, apiKey, model);
-  const cleanJsonText = text.replace(/```json/g, "").replace(/```/g, "").trim();
+  const cleanJsonText = extractJsonFromText(text);
   return JSON.parse(cleanJsonText) as OcrKtpResult;
 }
 
@@ -77,6 +87,6 @@ export async function aiDeepMatchName(
   model?: string
 ): Promise<DeepMatchResult> {
   const text = await callAI("deep_match", { targetName, candidateList }, apiKey, model);
-  const cleanJsonText = text.replace(/```json/g, "").replace(/```/g, "").trim();
+  const cleanJsonText = extractJsonFromText(text);
   return JSON.parse(cleanJsonText) as DeepMatchResult;
 }

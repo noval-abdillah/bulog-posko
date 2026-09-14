@@ -136,19 +136,57 @@ Kembalikan HANYA format JSON valid tanpa markdown:
         model,
         messages,
         temperature: 0.2,
+        stream: false,
       }),
     });
 
+    const rawText = await apiRes.text();
+
     if (!apiRes.ok) {
-      const errText = await apiRes.text();
       return NextResponse.json(
-        { error: `Gagal memanggil 9router API (${apiRes.status}): ${errText}` },
+        { error: `Gagal memanggil 9router API (${apiRes.status}): ${rawText}` },
         { status: apiRes.status }
       );
     }
 
-    const resData = await apiRes.json();
-    const resultText = resData.choices?.[0]?.message?.content ?? "";
+    let resultText = "";
+    let resData: unknown = null;
+
+    try {
+      resData = JSON.parse(rawText);
+      const parsedAny = resData as { choices?: { message?: { content?: string } }[] };
+      resultText = parsedAny.choices?.[0]?.message?.content ?? "";
+    } catch {
+      // Fallback: Parse SSE (Server-Sent Events) streaming format data: {...}
+      const lines = rawText.split("\n");
+      const contentParts: string[] = [];
+
+      for (const line of lines) {
+        const trimmed = line.trim();
+        if (!trimmed || trimmed === "data: [DONE]") continue;
+        if (trimmed.startsWith("data:")) {
+          const jsonStr = trimmed.slice(5).trim();
+          try {
+            const parsed = JSON.parse(jsonStr) as {
+              choices?: { delta?: { content?: string }; message?: { content?: string } }[];
+            };
+            const deltaContent =
+              parsed.choices?.[0]?.delta?.content ||
+              parsed.choices?.[0]?.message?.content ||
+              "";
+            if (deltaContent) contentParts.push(deltaContent);
+          } catch {
+            // ignore non-JSON line
+          }
+        }
+      }
+
+      if (contentParts.length > 0) {
+        resultText = contentParts.join("");
+      } else {
+        resultText = rawText;
+      }
+    }
 
     return NextResponse.json({ result: resultText, raw: resData });
   } catch (err: unknown) {
