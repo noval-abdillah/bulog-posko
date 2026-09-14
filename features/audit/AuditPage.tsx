@@ -17,6 +17,7 @@ import {
   type FilterAudit,
 } from "@/services/auditBulog";
 import { eksporExcel } from "@/lib/excel";
+import { aiGenerateAuditInsight } from "@/lib/ai";
 import { cleanStr, cleanNum, formatWaktuSekarang, fixNIK } from "@/lib/utils";
 import { useToast } from "@/components/ui/Toast";
 import { Badge } from "@/components/ui/Badge";
@@ -230,6 +231,9 @@ export default function AuditPage() {
 
   const [selectedSPTJMRow, setSelectedSPTJMRow] = useState<AuditRow | null>(null);
   const [showWAModal, setShowWAModal]           = useState(false);
+
+  const [aiInsightText, setAiInsightText]       = useState("");
+  const [aiInsightLoading, setAiInsightLoading] = useState(false);
 
   const recordsUntukAuditFisik = useMemo(() => {
     if (scopedSudahSerah.length > 0 || scopedBelumSerah.length > 0) {
@@ -965,6 +969,30 @@ export default function AuditPage() {
   const countHumanError  = selisihRows.filter((r) => r.kategoriSelisih === "HUMAN_ERROR_BAST").length;
   const countMatch       = selisihRows.filter((r) => r.kategoriSelisih === "MATCH_LENGKAP").length;
 
+  async function handleGenerateAiInsight() {
+    setAiInsightLoading(true);
+    toast.info("🤖 AI Auditor 9router sedang menganalisis selisih 3-way...");
+    try {
+      const statsData = {
+        totalRecords: selisihRows.length,
+        tungguInputWeb: countTungguInput,
+        belumAmbilSisa: countBelumAmbil,
+        salahTulisBast: countHumanError,
+        matchSempurna: countMatch,
+        poskoAktif,
+      };
+      const customKey = localStorage.getItem("ninerouter_api_key") ?? undefined;
+      const text = await aiGenerateAuditInsight(statsData, poskoAktif, customKey);
+      setAiInsightText(text);
+      toast.sukses("AI Audit Insight berhasil dihasilkan!");
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      toast.error(`Gagal menghasilkan AI Insight: ${msg}`);
+    } finally {
+      setAiInsightLoading(false);
+    }
+  }
+
   return (
     <div className="space-y-5">
       {/* Modal Cetak SPTJM Single */}
@@ -1141,6 +1169,43 @@ export default function AuditPage() {
               />
             </div>
           </div>
+
+          {/* AI Executive Summary Card */}
+          <Card className="border-sky-200 bg-sky-50/40">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-3">
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-xl bg-sky-600 text-white flex items-center justify-center font-bold text-sm shadow-2xs flex-shrink-0">
+                  🤖
+                </div>
+                <div>
+                  <h3 className="text-sm font-black text-slate-900 flex items-center gap-2">
+                    AI Ringkasan Eksekutif &amp; Rekomendasi Audit
+                    <span className="text-[9px] bg-sky-200 text-sky-900 font-bold px-2 py-0.5 rounded-full border border-sky-300">9router AI</span>
+                  </h3>
+                  <p className="text-xs text-slate-500">Analisis otomatis pola selisih data 3-way untuk Posko {poskoAktif}</p>
+                </div>
+              </div>
+              <Button
+                variant="primary"
+                size="sm"
+                onClick={handleGenerateAiInsight}
+                disabled={aiInsightLoading || selisihRows.length === 0}
+                icon={<span>💡</span>}
+              >
+                {aiInsightLoading ? "AI Menganalisis..." : aiInsightText ? "Regenerate AI Insight" : "Hasilkan AI Audit Insight"}
+              </Button>
+            </div>
+
+            {aiInsightText ? (
+              <div className="p-4 bg-white rounded-2xl border border-sky-200 text-xs text-slate-800 leading-relaxed space-y-2 font-medium animate-fade-in-up">
+                <p className="whitespace-pre-wrap font-sans">{aiInsightText}</p>
+              </div>
+            ) : (
+              <p className="text-xs text-slate-500 italic bg-white/60 p-3 rounded-xl border border-slate-200">
+                Klik tombol "Hasilkan AI Audit Insight" untuk memicu analisis otomatis dari 9router AI berdasarkan {selisihRows.length} data selisih Posko {poskoAktif}.
+              </p>
+            )}
+          </Card>
 
           <Card noPadding>
             {/* Toolbar Filter & Aksi Ekspor */}

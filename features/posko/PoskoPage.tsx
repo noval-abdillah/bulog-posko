@@ -13,6 +13,7 @@ import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { mainkanSuaraSukses, mainkanSuaraPeringatan } from "@/lib/audio";
+import { aiScanOcrKtp, aiDeepMatchName } from "@/lib/ai";
 import type { MasterRow, BastRow } from "@/types";
 
 import FileUploadPanel from "./FileUploadPanel";
@@ -41,6 +42,9 @@ export default function PoskoPage() {
   const [matchMode, setMatchMode] = useState("Normal");
   const [dupList, setDupList]     = useState<MasterRow[]>([]);
   const [dupBAST, setDupBAST]     = useState<BastRow | null>(null);
+
+  const [ocrLoading, setOcrLoading] = useState(false);
+  const [deepMatching, setDeepMatching] = useState(false);
 
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -123,6 +127,79 @@ export default function PoskoPage() {
     tampilkan(item, dupBAST, matchMode.replace(" (Otomatis Sesuai Posko)", ""));
   }
 
+  async function handleAiOcrImage(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setOcrLoading(true);
+    toast.info("🤖 AI Vision 9router sedang membaca KTP/BAST...");
+    try {
+      const base64 = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result as string);
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+      });
+
+      const customKey = localStorage.getItem("ninerouter_api_key") ?? undefined;
+      const res = await aiScanOcrKtp(base64, customKey);
+
+      const targetSearch = res.nik || res.nama || "";
+      if (targetSearch) {
+        setQuery(targetSearch);
+        toast.sukses(`AI OCR Berhasil: NIK ${res.nik || "—"} / Nama: ${res.nama || "—"}`);
+        setTimeout(() => {
+          const rawQ = targetSearch.trim();
+          const hasil = jalankanPengecekan(
+            rawQ, poskoAktif,
+            poskoBastRecords, masterRecords,
+            masterByNIK, masterByName,
+            bastByNIK, bastByNoUrut,
+            masterByKK
+          );
+          if (!hasil.tidakDitemukan) {
+            mainkanSuaraSukses();
+            tampilkan(hasil.matchesMaster[0] ?? null, hasil.matchBAST, "AI OCR Vision (9router)");
+          }
+        }, 100);
+      } else {
+        toast.peringatan("AI OCR tidak menemukan NIK/Nama yang jelas dari foto.");
+      }
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      toast.error(`Gagal AI OCR: ${msg}`);
+    } finally {
+      setOcrLoading(false);
+      e.target.value = "";
+    }
+  }
+
+  async function handleAiDeepMatch() {
+    if (!query.trim() || masterRecords.length === 0) return;
+    setDeepMatching(true);
+    toast.info("🤖 AI 9router sedang membandingkan kemiripan typo nama...");
+
+    try {
+      const candidateList = masterRecords.slice(0, 100).map((m) => ({ NAMA: m.NAMA, NIK: m.NIK, KEL: m.KEL_NAME }));
+      const customKey = localStorage.getItem("ninerouter_api_key") ?? undefined;
+      const res = await aiDeepMatchName(query, candidateList, customKey);
+
+      if (res.bestMatchIndex != null && candidateList[res.bestMatchIndex]) {
+        const matchedItem = masterRecords[res.bestMatchIndex];
+        mainkanSuaraSukses();
+        setShowNotFound(false);
+        tampilkan(matchedItem, null, `AI Deep Match (${res.confidenceScore}%) — ${res.alasan}`);
+        toast.sukses(`AI Match Cocok: ${matchedItem.NAMA} (${res.confidenceScore}%)`);
+      } else {
+        toast.peringatan("AI Deep Match tidak menemukan kandidat nama yang cocok.");
+      }
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      toast.error(`Gagal AI Deep Match: ${msg}`);
+    } finally {
+      setDeepMatching(false);
+    }
+  }
+
   return (
     <div className="space-y-5">
       {/* Stepper + Upload */}
@@ -177,7 +254,21 @@ export default function PoskoPage() {
               </button>
             )}
           </div>
-          <div className="flex gap-2 w-full sm:w-auto">
+          <div className="flex gap-2 w-full sm:w-auto flex-wrap sm:flex-nowrap">
+            <label className={`cursor-pointer flex items-center justify-center gap-1.5 px-4 py-3 bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-700 hover:to-indigo-700 active:scale-[0.98] text-white font-bold rounded-xl text-xs transition shadow-sm touch-manipulation min-h-[48px] flex-1 sm:flex-none ${!readyScan || ocrLoading ? "opacity-50 pointer-events-none" : ""}`}>
+              {ocrLoading ? (
+                <>
+                  <svg className="w-4 h-4 animate-spin text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>
+                  <span>Memproses AI...</span>
+                </>
+              ) : (
+                <>
+                  <span className="text-base">📷</span>
+                  <span>AI OCR KTP</span>
+                </>
+              )}
+              <input type="file" accept="image/*" capture="environment" className="hidden" onChange={handleAiOcrImage} disabled={ocrLoading || !readyScan} />
+            </label>
             <Button
               variant="primary"
               size="lg"
@@ -233,17 +324,30 @@ export default function PoskoPage() {
 
       {/* Not found */}
       {showNotFound && (
-        <Card>
+        <Card className="border-rose-200 bg-rose-50/40">
           <EmptyState
             icon={
-              <svg className="w-7 h-7" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <svg className="w-7 h-7 text-rose-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                 <circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/>
               </svg>
             }
             title="DATA TIDAK DITEMUKAN"
-            description="Tidak ditemukan di Master Data maupun BAST yang dimuat. Pastikan nama/NIK benar atau arahkan warga ke Meja Pengaduan."
+            description={`Tidak ditemukan secara langsung untuk "${query}" di BAST Posko ${poskoAktif} maupun Master Data.`}
             action={
-              <Button variant="secondary" size="sm" onClick={bersihkan}>Coba Pencarian Lain</Button>
+              <div className="flex gap-2 flex-wrap justify-center">
+                <Button
+                  variant="primary"
+                  size="sm"
+                  onClick={handleAiDeepMatch}
+                  disabled={deepMatching || masterRecords.length === 0}
+                  icon={<span>🤖</span>}
+                >
+                  {deepMatching ? "AI Matching..." : "AI Deep Match Typo"}
+                </Button>
+                <Button variant="secondary" size="sm" onClick={bersihkan}>
+                  Coba Pencarian Lain
+                </Button>
+              </div>
             }
           />
         </Card>

@@ -20,6 +20,7 @@ import AuditPage from "@/features/audit/AuditPage";
 import DataBermasalahPage from "@/features/bermasalah/DataBermasalahPage";
 import PanduanPage from "@/features/panduan/PanduanPage";
 import ChatPage from "@/features/chat/ChatPage";
+import AICopilotModal from "@/components/ui/AICopilotModal";
 
 export default function AppShell() {
   const activeTab         = useAppStore((s) => s.activeTab);
@@ -153,6 +154,7 @@ export default function AppShell() {
         </main>
       </div>
 
+      <AICopilotModal />
       <ToastContainer />
     </div>
   );
