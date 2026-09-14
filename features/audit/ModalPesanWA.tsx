@@ -111,13 +111,15 @@ export default function ModalPesanWA({
     toast.info("🤖 AI 9router sedang menyusun pesan WA terpersonalisasi...");
     try {
       const customKey = localStorage.getItem("ninerouter_api_key") ?? undefined;
+      const customModel = localStorage.getItem("ninerouter_model") ?? undefined;
       const text = await aiPersonalizeWaMsg(
         aiTone,
         currentRt,
         currentRw,
         kelurahan,
         currentList.slice(0, 50).map((w) => ({ NAMA: w.nama, NIK: w.nik, RT: w.rt, RW: w.rw, ALAMAT: w.alamat })),
-        customKey
+        customKey,
+        customModel
       );
       setAiPesan(text);
       toast.sukses("Pesan WA terpersonalisasi AI berhasil disusun!");

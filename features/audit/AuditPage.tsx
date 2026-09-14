@@ -982,7 +982,8 @@ export default function AuditPage() {
         poskoAktif,
       };
       const customKey = localStorage.getItem("ninerouter_api_key") ?? undefined;
-      const text = await aiGenerateAuditInsight(statsData, poskoAktif, customKey);
+      const customModel = localStorage.getItem("ninerouter_model") ?? undefined;
+      const text = await aiGenerateAuditInsight(statsData, poskoAktif, customKey, customModel);
       setAiInsightText(text);
       toast.sukses("AI Audit Insight berhasil dihasilkan!");
     } catch (err: unknown) {

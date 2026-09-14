@@ -14,7 +14,7 @@ import { NextResponse } from "next/server";
 export async function POST(req: Request) {
   try {
     const body = await req.json();
-    const { action, payload, apiKey: clientApiKey } = body;
+    const { action, payload, apiKey: clientApiKey, model: clientModel } = body;
     const apiKey =
       clientApiKey ||
       process.env.NINEROUTER_API_KEY ||
@@ -22,7 +22,9 @@ export async function POST(req: Request) {
       "9router-local-key";
 
     const baseUrl = process.env.NINEROUTER_BASE_URL || "http://localhost:20128/v1";
-    const model = process.env.NINEROUTER_MODEL || "9router/SuperAdmin";
+    const rawModel = clientModel || process.env.NINEROUTER_MODEL || "SuperAdmin";
+    // Strip prefix '9router/' if passed by mistake
+    const model = rawModel.replace(/^9router\//i, "");
 
     let messages: unknown[] = [];
 

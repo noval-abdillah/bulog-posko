@@ -141,7 +141,8 @@ export default function PoskoPage() {
       });
 
       const customKey = localStorage.getItem("ninerouter_api_key") ?? undefined;
-      const res = await aiScanOcrKtp(base64, customKey);
+      const customModel = localStorage.getItem("ninerouter_model") ?? undefined;
+      const res = await aiScanOcrKtp(base64, customKey, customModel);
 
       const targetSearch = res.nik || res.nama || "";
       if (targetSearch) {
@@ -181,7 +182,8 @@ export default function PoskoPage() {
     try {
       const candidateList = masterRecords.slice(0, 100).map((m) => ({ NAMA: m.NAMA, NIK: m.NIK, KEL: m.KEL_NAME }));
       const customKey = localStorage.getItem("ninerouter_api_key") ?? undefined;
-      const res = await aiDeepMatchName(query, candidateList, customKey);
+      const customModel = localStorage.getItem("ninerouter_model") ?? undefined;
+      const res = await aiDeepMatchName(query, candidateList, customKey, customModel);
 
       if (res.bestMatchIndex != null && candidateList[res.bestMatchIndex]) {
         const matchedItem = masterRecords[res.bestMatchIndex];

@@ -20,6 +20,7 @@ export default function AICopilotModal() {
   const [query, setQuery] = useState("");
   const [loading, setLoading] = useState(false);
   const [customApiKey, setCustomApiKey] = useState("");
+  const [customModel, setCustomModel] = useState("SuperAdmin");
   const [showKeyInput, setShowKeyInput] = useState(false);
 
   const poskoAktif = useAppStore((s) => s.poskoAktif);
@@ -42,6 +43,8 @@ export default function AICopilotModal() {
   useEffect(() => {
     const savedKey = localStorage.getItem("ninerouter_api_key") ?? "";
     if (savedKey) setCustomApiKey(savedKey);
+    const savedModel = localStorage.getItem("ninerouter_model") ?? "";
+    if (savedModel) setCustomModel(savedModel);
   }, []);
 
   const contextData = useMemo(() => {
@@ -72,6 +75,11 @@ export default function AICopilotModal() {
     localStorage.setItem("ninerouter_api_key", key);
   }
 
+  function handleSaveModel(modelName: string) {
+    setCustomModel(modelName);
+    localStorage.setItem("ninerouter_model", modelName);
+  }
+
   async function handleSend(textToSend?: string) {
     const q = (textToSend || query).trim();
     if (!q || loading) return;
@@ -91,7 +99,13 @@ export default function AICopilotModal() {
         .filter((m) => m.id !== "welcome")
         .map((m) => ({ role: m.role, content: m.content }));
 
-      const aiReply = await aiCopilotQuery(q, contextData, history, customApiKey || undefined);
+      const aiReply = await aiCopilotQuery(
+        q,
+        contextData,
+        history,
+        customApiKey || undefined,
+        customModel || undefined
+      );
 
       const aiMsg: ChatMessage = {
         id: Math.random().toString(36).slice(2),
@@ -170,21 +184,34 @@ export default function AICopilotModal() {
               </div>
             </div>
 
-            {/* Config API Key Drawer (Optional Override) */}
+            {/* Config API Key & Model Drawer (Optional Override) */}
             {showKeyInput && (
               <div className="px-4 py-3 bg-slate-900 text-white text-xs border-b border-slate-800 space-y-2 animate-fade-in-up">
                 <div className="flex justify-between items-center">
-                  <span className="font-bold text-sky-300 text-[11px]">🔑 API Key 9router (Opsional Override):</span>
+                  <span className="font-bold text-sky-300 text-[11px]">⚙️ Pengaturan 9router AI:</span>
                   <button onClick={() => setShowKeyInput(false)} className="text-[10px] text-slate-400 hover:text-white">Tutup</button>
                 </div>
-                <input
-                  type="password"
-                  value={customApiKey}
-                  onChange={(e) => handleSaveKey(e.target.value)}
-                  placeholder="Masukkan sk-xxxx-api-key-9router..."
-                  className="w-full px-3 py-1.5 bg-slate-800 border border-slate-700 rounded-xl text-xs text-white focus:outline-none focus:ring-1 focus:ring-sky-400"
-                />
-                <p className="text-[9px] text-slate-400">Tersimpan di browser lokal Anda. Jika kosong, sistem memakai NINEROUTER_API_KEY server.</p>
+                <div>
+                  <label className="block text-[10px] text-slate-400 mb-1">Combo / Model ID (Default: SuperAdmin):</label>
+                  <input
+                    type="text"
+                    value={customModel}
+                    onChange={(e) => handleSaveModel(e.target.value)}
+                    placeholder="Contoh: SuperAdmin"
+                    className="w-full px-3 py-1.5 bg-slate-800 border border-slate-700 rounded-xl text-xs font-mono text-white focus:outline-none focus:ring-1 focus:ring-sky-400"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[10px] text-slate-400 mb-1">API Key (Opsional):</label>
+                  <input
+                    type="password"
+                    value={customApiKey}
+                    onChange={(e) => handleSaveKey(e.target.value)}
+                    placeholder="Masukkan sk-xxxx-api-key-9router..."
+                    className="w-full px-3 py-1.5 bg-slate-800 border border-slate-700 rounded-xl text-xs text-white focus:outline-none focus:ring-1 focus:ring-sky-400"
+                  />
+                </div>
+                <p className="text-[9px] text-slate-400">Tersimpan di browser lokal Anda.</p>
               </div>
             )}
 
