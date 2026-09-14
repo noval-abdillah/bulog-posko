@@ -19,19 +19,9 @@ export async function POST(req: Request) {
       clientApiKey ||
       process.env.NINEROUTER_API_KEY ||
       process.env.NEXT_PUBLIC_NINEROUTER_API_KEY ||
-      "";
+      "9router-local-key";
 
-    if (!apiKey) {
-      return NextResponse.json(
-        {
-          error:
-            "API Key 9router belum dikonfigurasi. Harap isi API Key pada form atau atur NINEROUTER_API_KEY.",
-        },
-        { status: 400 }
-      );
-    }
-
-    const baseUrl = process.env.NINEROUTER_BASE_URL || "https://api.9router.com/v1";
+    const baseUrl = process.env.NINEROUTER_BASE_URL || "http://localhost:20128/v1";
     const model = process.env.NINEROUTER_MODEL || "9router/SuperAdmin";
 
     let messages: unknown[] = [];
