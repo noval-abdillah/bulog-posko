@@ -240,7 +240,13 @@ export const useAppStore = create<AppState>((set, get) => ({
     const bastByNIK = new Map<string, BastRow>();
     const bastByNoUrut = new Map<string, BastRow>();
     for (const b of records) {
-      if (b.NIK) bastByNIK.set(b.NIK, b);
+      if (b.NIK) {
+        bastByNIK.set(b.NIK, b);
+        const cNum = cleanNum(b.NIK);
+        if (cNum) bastByNIK.set(cNum, b);
+        const fNik = fixNIK(b.NIK);
+        if (fNik) bastByNIK.set(fNik, b);
+      }
       if (b.NO_URUT != null) {
         const kelKey = cleanStr(b.KELURAHAN_BAST);
         if (kelKey) bastByNoUrut.set(`${kelKey}_${b.NO_URUT}`, b);
@@ -268,7 +274,13 @@ export const useAppStore = create<AppState>((set, get) => ({
     const bastByNoUrut = new Map<string, BastRow>();
 
     for (const b of merged) {
-      if (b.NIK) bastByNIK.set(b.NIK, b);
+      if (b.NIK) {
+        bastByNIK.set(b.NIK, b);
+        const cNum = cleanNum(b.NIK);
+        if (cNum) bastByNIK.set(cNum, b);
+        const fNik = fixNIK(b.NIK);
+        if (fNik) bastByNIK.set(fNik, b);
+      }
       if (b.NO_URUT != null) {
         const kelKey = cleanStr(b.KELURAHAN_BAST);
         if (kelKey) bastByNoUrut.set(`${kelKey}_${b.NO_URUT}`, b);
@@ -381,7 +393,13 @@ export const useAppStore = create<AppState>((set, get) => ({
       const bastByNIK = new Map<string, BastRow>();
       const bastByNoUrut = new Map<string, BastRow>();
       for (const b of bast.records) {
-        if (b.NIK) bastByNIK.set(b.NIK, b);
+        if (b.NIK) {
+          bastByNIK.set(b.NIK, b);
+          const cNum = cleanNum(b.NIK);
+          if (cNum) bastByNIK.set(cNum, b);
+          const fNik = fixNIK(b.NIK);
+          if (fNik) bastByNIK.set(fNik, b);
+        }
         if (b.NO_URUT != null) {
           const kelKey = cleanStr(b.KELURAHAN_BAST);
           if (kelKey) bastByNoUrut.set(`${kelKey}_${b.NO_URUT}`, b);

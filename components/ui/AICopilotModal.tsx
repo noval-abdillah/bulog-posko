@@ -106,31 +106,77 @@ export default function AICopilotModal() {
       return cleanKel === cleanPosko || cleanKel.includes(cleanPosko) || cleanPosko.includes(cleanKel);
     };
 
-    // 1. Daftar Sisa Belum Ambil (dengan No. Urut BAST)
+    // 1. Daftar Sisa Belum Ambil (Diambil dari File 2 Belum Diserahkan Web Bulog & BAST PDF, urut No. BAST)
     const poskoBast = bastRecords.filter((b) => isPoskoMatch(b.KELURAHAN_BAST || ""));
     const servedNIKs = new Set(logPelayanan.filter((l) => l.status === "SUKSES_SALUR").map((l) => fixNIK(l.nik)));
 
-    const sisaBelumAmbilList = poskoBast
-      .filter((b) => {
-        const n = fixNIK(b.NIK);
-        return !n || !servedNIKs.has(n);
-      })
-      .map((b) => ({
-        noUrut: b.NO_URUT ?? null,
-        nama: b.NAMA,
-        nik: b.NIK,
-        noKK: b.NO_KK,
-        rt: b.NO_RT || "—",
-        rw: b.NO_RW || "—",
-        alamat: b.ALAMAT_BAST,
-        kelurahan: b.KELURAHAN_BAST,
-      }))
-      .sort((a, b) => {
-        if (a.noUrut != null && b.noUrut != null) return a.noUrut - b.noUrut;
-        if (a.noUrut != null) return -1;
-        if (b.noUrut != null) return 1;
-        return a.nama.localeCompare(b.nama);
+    const sourceBelum = bulogBelumSerahRecords.length > 0
+      ? bulogBelumSerahRecords
+      : bulogExportRecords.filter((r) => String(r.status_serah || "").toLowerCase().includes("belum") || r._tipeEkspor === "BELUM_DISERAHKAN");
+
+    let sisaBelumAmbilList: { noUrut: number | null; nama: string; nik: string; noKK: string; rt: string; rw: string; alamat: string; kelurahan: string; verificationStatus: string }[] = [];
+
+    if (sourceBelum.length > 0) {
+      sisaBelumAmbilList = sourceBelum.map((r) => {
+        const nikClean = fixNIK(r.nik) || cleanNum(r.nik);
+        const namaClean = cleanStr(r.nama);
+
+        let extractedNoUrut: number | null = null;
+        const rawNoBastStr = String(r.no_bast || r.no || "").trim();
+        const noMatch = rawNoBastStr.match(/(\d{1,5})$/);
+        if (noMatch) extractedNoUrut = parseInt(noMatch[1], 10);
+
+        const bastMatch = (nikClean ? bastByNIK.get(nikClean) ?? null : null)
+          || (extractedNoUrut ? bastRecords.find((b) => b.NO_URUT === extractedNoUrut) ?? null : null)
+          || (namaClean ? bastRecords.find((b) => cleanStr(b.NAMA) === namaClean || cleanStr(b.NAMA).includes(namaClean) || namaClean.includes(cleanStr(b.NAMA))) ?? null : null);
+
+        const masterMatch = (nikClean ? masterByNIK.get(nikClean) ?? null : null)
+          || (namaClean ? masterByName.get(namaClean)?.[0] ?? null : null);
+
+        let finalRt = String(r.rt || "").trim();
+        let finalRw = String(r.rw || "").trim();
+        if (!finalRt && bastMatch?.NO_RT) finalRt = bastMatch.NO_RT;
+        if (!finalRw && bastMatch?.NO_RW) finalRw = bastMatch.NO_RW;
+        if (!finalRt && masterMatch?.NO_RT) finalRt = masterMatch.NO_RT;
+        if (!finalRw && masterMatch?.NO_RW) finalRw = masterMatch.NO_RW;
+
+        return {
+          noUrut: bastMatch?.NO_URUT ?? extractedNoUrut ?? null,
+          nama: r.nama || bastMatch?.NAMA || "—",
+          nik: nikClean || bastMatch?.NIK || r.nik || "—",
+          noKK: fixNIK(r.no_kk) || bastMatch?.NO_KK || masterMatch?.NO_KK || "—",
+          rt: finalRt || "—",
+          rw: finalRw || "—",
+          alamat: r.alamat && r.alamat !== "—" && r.alamat !== "-" ? r.alamat : (bastMatch?.ALAMAT_BAST || masterMatch?.ALAMAT || "—"),
+          kelurahan: r.kelurahan || bastMatch?.KELURAHAN_BAST || poskoAktif,
+          verificationStatus: r.verification_status || "Belum diverifikasi",
+        };
       });
+    } else {
+      sisaBelumAmbilList = poskoBast
+        .filter((b) => {
+          const n = fixNIK(b.NIK);
+          return !n || !servedNIKs.has(n);
+        })
+        .map((b) => ({
+          noUrut: b.NO_URUT ?? null,
+          nama: b.NAMA,
+          nik: b.NIK,
+          noKK: b.NO_KK,
+          rt: b.NO_RT || "—",
+          rw: b.NO_RW || "—",
+          alamat: b.ALAMAT_BAST,
+          kelurahan: b.KELURAHAN_BAST,
+          verificationStatus: "Belum diverifikasi",
+        }));
+    }
+
+    sisaBelumAmbilList.sort((a, b) => {
+      if (a.noUrut != null && b.noUrut != null) return a.noUrut - b.noUrut;
+      if (a.noUrut != null) return -1;
+      if (b.noUrut != null) return 1;
+      return a.nama.localeCompare(b.nama);
+    });
 
     // 2. Daftar Undangan Nyasar / Anomali Wilayah (BAST vs Master Data 142k Sebagai Acuan Utama)
     const undanganNyasarList: { noUrut: number | null; nama: string; nik: string; kelBAST: string; kelMaster: string; alamatMaster: string }[] = [];

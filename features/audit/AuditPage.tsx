@@ -269,11 +269,19 @@ export default function AuditPage() {
         const nikClean = fixNIK(r.nik) || cleanNum(r.nik);
         const namaClean = cleanStr(r.nama);
 
+        let extractedNoUrut: number | null = null;
+        const rawNoBastStr = String(r.no_bast || r.no || "").trim();
+        const noMatch = rawNoBastStr.match(/(\d{1,5})$/);
+        if (noMatch) extractedNoUrut = parseInt(noMatch[1], 10);
+
         const masterMatch = (nikClean ? masterByNIK.get(nikClean) ?? null : null)
           || (namaClean ? masterByName.get(namaClean)?.[0] ?? null : null);
 
         const bastMatch = (nikClean ? bastByNIK.get(nikClean) ?? null : null)
-          || (namaClean ? scopedBastRecords.find((b) => cleanStr(b.NAMA) === namaClean) ?? null : null);
+          || (extractedNoUrut ? scopedBastRecords.find((b) => b.NO_URUT === extractedNoUrut) ?? null : null)
+          || (namaClean ? scopedBastRecords.find((b) => cleanStr(b.NAMA) === namaClean || cleanStr(b.NAMA).includes(namaClean) || namaClean.includes(cleanStr(b.NAMA))) ?? null : null);
+
+        const finalNoUrut = bastMatch?.NO_URUT ?? extractedNoUrut ?? null;
 
         let finalRt = String(r.rt || "").trim();
         let finalRw = String(r.rw || "").trim();
@@ -301,7 +309,7 @@ export default function AuditPage() {
         const alamatMaster = masterMatch?.ALAMAT || bastMatch?.ALAMAT_BAST || "—";
 
         return {
-          noUrut: bastMatch?.NO_URUT ?? null,
+          noUrut: finalNoUrut,
           nik: nikClean || bastMatch?.NIK || r.nik || "—",
           nikBast: bastMatch?.NIK || undefined,
           nama: r.nama || bastMatch?.NAMA || masterMatch?.NAMA || "—",
@@ -1528,23 +1536,36 @@ export default function AuditPage() {
                   />
                 </div>
               ) : (
-                paginated.map((row, idx) => (
-                  <div key={idx} className="p-4 space-y-2 bg-white active:bg-slate-50 transition">
-                    <div className="flex items-start justify-between gap-2">
-                      <div>
-                        <h4 className="text-sm font-black text-slate-900">{row.nama}</h4>
-                        <p className="text-xs font-mono text-slate-500 mt-0.5">NIK: {row.nik}</p>
+                paginated.map((row, idx) => {
+                  const nClean = fixNIK(row.nik) || cleanNum(row.nik);
+                  const bMatch = nClean ? bastByNIK.get(nClean) : scopedBastRecords.find((b) => cleanStr(b.NAMA) === cleanStr(row.nama));
+                  const noU = bMatch?.NO_URUT;
+
+                  return (
+                    <div key={idx} className="p-4 space-y-2 bg-white active:bg-slate-50 transition">
+                      <div className="flex items-start justify-between gap-2">
+                        <div>
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            {noU != null && (
+                              <span className="px-1.5 py-0.5 bg-amber-100 text-amber-900 text-[10px] font-mono font-bold rounded">
+                                No. {noU}
+                              </span>
+                            )}
+                            <h4 className="text-sm font-black text-slate-900">{row.nama}</h4>
+                          </div>
+                          <p className="text-xs font-mono text-slate-500 mt-0.5">NIK: {row.nik}</p>
+                        </div>
+                        {renderBadge(row)}
                       </div>
-                      {renderBadge(row)}
+                      <div className="text-xs text-slate-700 bg-slate-50 p-2.5 rounded-xl border border-slate-100 space-y-1">
+                        <p><span className="text-slate-400 font-normal">Verifikasi Web:</span> <Badge variant={/terverifikasi|sudah|ya|diterima|verified/i.test(String(row.verification_status)) && !/belum/i.test(String(row.verification_status)) ? "success" : "warning"}>{row.verification_status || "Belum diverifikasi"}</Badge></p>
+                        <p><span className="text-slate-400 font-normal">Pengambil:</span> <b>{row.nama_pengganti || "Penerima Asli"}</b></p>
+                        <p><span className="text-slate-400 font-normal">Catatan:</span> {row.notes} ({row.kelurahan})</p>
+                      </div>
+                      {renderRekomendasi(row)}
                     </div>
-                    <div className="text-xs text-slate-700 bg-slate-50 p-2.5 rounded-xl border border-slate-100 space-y-1">
-                      <p><span className="text-slate-400 font-normal">Verifikasi Web:</span> <Badge variant={/terverifikasi|sudah|ya|diterima|verified/i.test(String(row.verification_status)) && !/belum/i.test(String(row.verification_status)) ? "success" : "warning"}>{row.verification_status || "Belum diverifikasi"}</Badge></p>
-                      <p><span className="text-slate-400 font-normal">Pengambil:</span> <b>{row.nama_pengganti || "Penerima Asli"}</b></p>
-                      <p><span className="text-slate-400 font-normal">Catatan:</span> {row.notes} ({row.kelurahan})</p>
-                    </div>
-                    {renderRekomendasi(row)}
-                  </div>
-                ))
+                  );
+                })
               )}
             </div>
 
@@ -1582,13 +1603,25 @@ export default function AuditPage() {
                       </td>
                     </tr>
                   ) : (
-                    paginated.map((row, idx) => (
-                      <tr key={idx} className="hover:bg-slate-50 transition">
-                        <td className="px-4 py-3 text-slate-400 font-bold">{(page - 1) * PAGE_SIZE + idx + 1}</td>
-                        <td className="px-4 py-3">
-                          <div className="font-bold text-slate-900">{row.nama}</div>
-                          <div className="text-[10px] text-slate-400 font-mono">NIK: {row.nik}</div>
-                        </td>
+                    paginated.map((row, idx) => {
+                      const nClean = fixNIK(row.nik) || cleanNum(row.nik);
+                      const bMatch = nClean ? bastByNIK.get(nClean) : scopedBastRecords.find((b) => cleanStr(b.NAMA) === cleanStr(row.nama));
+                      const noU = bMatch?.NO_URUT;
+
+                      return (
+                        <tr key={idx} className="hover:bg-slate-50 transition">
+                          <td className="px-4 py-3 text-slate-400 font-bold">{(page - 1) * PAGE_SIZE + idx + 1}</td>
+                          <td className="px-4 py-3">
+                            <div className="font-bold text-slate-900 flex items-center gap-1.5 flex-wrap">
+                              {noU != null && (
+                                <span className="px-1.5 py-0.5 bg-amber-100 text-amber-900 text-[10px] font-mono font-bold rounded" title="No. Urut Undangan BAST">
+                                  No. {noU}
+                                </span>
+                              )}
+                              {row.nama}
+                            </div>
+                            <div className="text-[10px] text-slate-400 font-mono">NIK: {row.nik}</div>
+                          </td>
                         <td className="px-4 py-3">
                           {row.nama_pengganti && row.nama_pengganti !== "—" && row.nama_pengganti !== "-" ? (
                             <>
@@ -1611,7 +1644,8 @@ export default function AuditPage() {
                         </td>
                         <td className="px-4 py-3 max-w-[220px]">{renderRekomendasi(row)}</td>
                       </tr>
-                    ))
+                      );
+                    })
                   )}
                 </tbody>
               </table>

@@ -110,7 +110,7 @@ export function extractBASTFromColumn(
       .replace(/\s+RT\s*\d+.*$/i, "")
       .replace(/\s*RW\s*\d+.*$/i, "")
       .trim();
-    cleanName = cleanName.replace(/^[0-9]+\s+/, "").trim();
+    cleanName = cleanName.replace(/^[\*\d\.\s\-\_]+/, "").trim();
 
     if (cleanName && cleanName.length >= 2) {
       results.push({

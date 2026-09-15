@@ -162,9 +162,15 @@ export function analisaSelisih3Way(
         statusSerahWeb.includes("salur") ||
         statusSerahWeb.includes("ya"));
 
+    let extractedNoUrut: number | null = null;
+    const rawNoBastStr = String(bRow.no_bast || bRow.no || "").trim();
+    const noMatch = rawNoBastStr.match(/(\d{1,5})$/);
+    if (noMatch) extractedNoUrut = parseInt(noMatch[1], 10);
+
     const logMatch = logMapByNIK.get(nikClean);
     const bastMatchRaw = (nikClean ? bastMapByNIK.get(nikClean) ?? null : null)
-      || (namaClean ? bastRecords.find((b) => cleanStr(b.NAMA) === namaClean) ?? null : null);
+      || (extractedNoUrut ? bastRecords.find((b) => b.NO_URUT === extractedNoUrut) ?? null : null)
+      || (namaClean ? bastRecords.find((b) => cleanStr(b.NAMA) === namaClean || cleanStr(b.NAMA).includes(namaClean) || namaClean.includes(cleanStr(b.NAMA))) ?? null : null);
     const bastMatch = bastMatchRaw && isPoskoScope(bastMatchRaw.KELURAHAN_BAST) ? bastMatchRaw : null;
     const isTerverifikasiPosko = Boolean(logMatch && logMatch.status === "SUKSES_SALUR");
     const adaFisik = Boolean(isTerverifikasiPosko || bastMatch);
@@ -258,7 +264,7 @@ export function analisaSelisih3Way(
       : (masterMatch?.ALAMAT || bastMatch?.ALAMAT_BAST || "—");
 
     hasil.push({
-      noUrut: bastMatch?.NO_URUT ?? null,
+      noUrut: bastMatch?.NO_URUT ?? extractedNoUrut ?? null,
       nik: bRow.nik || (masterMatch?.NIK ?? "—"),
       nikBast: bastMatch?.NIK || undefined,
       nama: bRow.nama || (masterMatch?.NAMA ?? "—"),
