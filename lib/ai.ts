@@ -18,11 +18,20 @@ export interface DeepMatchResult {
   alasan: string;
 }
 
-async function callAI(action: string, payload: unknown, apiKey?: string, model?: string): Promise<string> {
+async function callAI(
+  action: string,
+  payload: unknown,
+  apiKey?: string,
+  model?: string,
+  baseUrl?: string
+): Promise<string> {
+  const savedBaseUrl = typeof window !== "undefined" ? localStorage.getItem("ninerouter_base_url") ?? "" : "";
+  const finalBaseUrl = baseUrl || savedBaseUrl || undefined;
+
   const res = await fetch("/api/ai", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ action, payload, apiKey, model }),
+    body: JSON.stringify({ action, payload, apiKey, model, baseUrl: finalBaseUrl }),
   });
 
   const data = await res.json();
@@ -43,8 +52,13 @@ function extractJsonFromText(text: string): string {
   return clean;
 }
 
-export async function aiScanOcrKtp(imageBase64: string, apiKey?: string, model?: string): Promise<OcrKtpResult> {
-  const text = await callAI("ocr_ktp", { imageBase64 }, apiKey, model);
+export async function aiScanOcrKtp(
+  imageBase64: string,
+  apiKey?: string,
+  model?: string,
+  baseUrl?: string
+): Promise<OcrKtpResult> {
+  const text = await callAI("ocr_ktp", { imageBase64 }, apiKey, model, baseUrl);
   const cleanJsonText = extractJsonFromText(text);
   return JSON.parse(cleanJsonText) as OcrKtpResult;
 }
@@ -54,18 +68,20 @@ export async function aiCopilotQuery(
   contextData: unknown,
   chatHistory: { role: "user" | "assistant"; content: string }[] = [],
   apiKey?: string,
-  model?: string
+  model?: string,
+  baseUrl?: string
 ): Promise<string> {
-  return callAI("copilot", { userQuery, contextData, chatHistory }, apiKey, model);
+  return callAI("copilot", { userQuery, contextData, chatHistory }, apiKey, model, baseUrl);
 }
 
 export async function aiGenerateAuditInsight(
   statsData: unknown,
   poskoAktif: string,
   apiKey?: string,
-  model?: string
+  model?: string,
+  baseUrl?: string
 ): Promise<string> {
-  return callAI("audit_insight", { statsData, poskoAktif }, apiKey, model);
+  return callAI("audit_insight", { statsData, poskoAktif }, apiKey, model, baseUrl);
 }
 
 export async function aiPersonalizeWaMsg(
@@ -75,18 +91,20 @@ export async function aiPersonalizeWaMsg(
   kelurahan: string,
   wargaList: unknown[],
   apiKey?: string,
-  model?: string
+  model?: string,
+  baseUrl?: string
 ): Promise<string> {
-  return callAI("wa_personalize", { tone, rtTarget, rwTarget, kelurahan, wargaList }, apiKey, model);
+  return callAI("wa_personalize", { tone, rtTarget, rwTarget, kelurahan, wargaList }, apiKey, model, baseUrl);
 }
 
 export async function aiDeepMatchName(
   targetName: string,
   candidateList: unknown[],
   apiKey?: string,
-  model?: string
+  model?: string,
+  baseUrl?: string
 ): Promise<DeepMatchResult> {
-  const text = await callAI("deep_match", { targetName, candidateList }, apiKey, model);
+  const text = await callAI("deep_match", { targetName, candidateList }, apiKey, model, baseUrl);
   const cleanJsonText = extractJsonFromText(text);
   return JSON.parse(cleanJsonText) as DeepMatchResult;
 }

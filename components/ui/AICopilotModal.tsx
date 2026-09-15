@@ -59,6 +59,7 @@ export default function AICopilotModal() {
   const [loading, setLoading] = useState(false);
   const [customApiKey, setCustomApiKey] = useState("");
   const [customModel, setCustomModel] = useState("SuperAdmin");
+  const [customBaseUrl, setCustomBaseUrl] = useState("http://127.0.0.1:20128/v1");
   const [showKeyInput, setShowKeyInput] = useState(false);
 
   const poskoAktif            = useAppStore((s) => s.poskoAktif);
@@ -90,6 +91,8 @@ export default function AICopilotModal() {
     if (savedKey) setCustomApiKey(savedKey);
     const savedModel = localStorage.getItem("ninerouter_model") ?? "";
     if (savedModel) setCustomModel(savedModel);
+    const savedBaseUrl = localStorage.getItem("ninerouter_base_url") ?? "";
+    if (savedBaseUrl) setCustomBaseUrl(savedBaseUrl);
   }, []);
 
   const contextData = useMemo(() => {
@@ -267,6 +270,11 @@ export default function AICopilotModal() {
     localStorage.setItem("ninerouter_model", modelName);
   }
 
+  function handleSaveBaseUrl(url: string) {
+    setCustomBaseUrl(url);
+    localStorage.setItem("ninerouter_base_url", url);
+  }
+
   async function handleSend(textToSend?: string) {
     const q = (textToSend || query).trim();
     if (!q || loading) return;
@@ -291,7 +299,8 @@ export default function AICopilotModal() {
         contextData,
         history,
         customApiKey || undefined,
-        customModel || undefined
+        customModel || undefined,
+        customBaseUrl || undefined
       );
 
       const aiMsg: ChatMessage = {
@@ -377,6 +386,16 @@ export default function AICopilotModal() {
                 <div className="flex justify-between items-center">
                   <span className="font-bold text-sky-300 text-[11px]">⚙️ Pengaturan 9router AI:</span>
                   <button onClick={() => setShowKeyInput(false)} className="text-[10px] text-slate-400 hover:text-white">Tutup</button>
+                </div>
+                <div>
+                  <label className="block text-[10px] text-slate-400 mb-1">Base URL 9router (Default: http://127.0.0.1:20128/v1):</label>
+                  <input
+                    type="text"
+                    value={customBaseUrl}
+                    onChange={(e) => handleSaveBaseUrl(e.target.value)}
+                    placeholder="Contoh: http://127.0.0.1:20128/v1"
+                    className="w-full px-3 py-1.5 bg-slate-800 border border-slate-700 rounded-xl text-xs font-mono text-white focus:outline-none focus:ring-1 focus:ring-sky-400"
+                  />
                 </div>
                 <div>
                   <label className="block text-[10px] text-slate-400 mb-1">Combo / Model ID (Default: SuperAdmin):</label>

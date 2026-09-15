@@ -14,14 +14,15 @@ import { NextResponse } from "next/server";
 export async function POST(req: Request) {
   try {
     const body = await req.json();
-    const { action, payload, apiKey: clientApiKey, model: clientModel } = body;
+    const { action, payload, apiKey: clientApiKey, model: clientModel, baseUrl: clientBaseUrl } = body;
     const apiKey =
       clientApiKey ||
       process.env.NINEROUTER_API_KEY ||
       process.env.NEXT_PUBLIC_NINEROUTER_API_KEY ||
       "9router-local-key";
 
-    const baseUrl = process.env.NINEROUTER_BASE_URL || "http://localhost:20128/v1";
+    const rawBaseUrl = clientBaseUrl || process.env.NINEROUTER_BASE_URL || "http://127.0.0.1:20128/v1";
+    const baseUrl = rawBaseUrl.replace(/\/+$/, "");
     const rawModel = clientModel || process.env.NINEROUTER_MODEL || "SuperAdmin";
     // Strip prefix '9router/' if passed by mistake
     const model = rawModel.replace(/^9router\//i, "");
@@ -144,19 +145,30 @@ Kembalikan HANYA format JSON valid tanpa markdown:
       return NextResponse.json({ error: "Aksi tidak dikenali." }, { status: 400 });
     }
 
-    const apiRes = await fetch(`${baseUrl}/chat/completions`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${apiKey}`,
-      },
-      body: JSON.stringify({
-        model,
-        messages,
-        temperature: 0.2,
-        stream: false,
-      }),
-    });
+    let apiRes: Response;
+    try {
+      apiRes = await fetch(`${baseUrl}/chat/completions`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${apiKey}`,
+        },
+        body: JSON.stringify({
+          model,
+          messages,
+          temperature: 0.2,
+          stream: false,
+        }),
+      });
+    } catch (fetchErr: unknown) {
+      const errMsg = fetchErr instanceof Error ? fetchErr.message : String(fetchErr);
+      return NextResponse.json(
+        {
+          error: `Gagal terhubung ke 9router API (${baseUrl}): ${errMsg}. Pastikan aplikasi 9router berjalan di komputer Anda atau ganti Base URL via tombol ⚙️ Pengaturan Key.`,
+        },
+        { status: 502 }
+      );
+    }
 
     const rawText = await apiRes.text();
 
