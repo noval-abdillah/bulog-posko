@@ -8,11 +8,49 @@ import { useState, useRef, useEffect, useMemo } from "react";
 import { useAppStore } from "@/store/appStore";
 import { aiCopilotQuery } from "@/lib/ai";
 import { Button } from "@/components/ui/Button";
+import { cleanStr, cleanNum, fixNIK } from "@/lib/utils";
+import type { ActiveTab } from "@/types";
 
 interface ChatMessage {
   id: string;
   role: "user" | "assistant";
   content: string;
+}
+
+function renderAiMessageContent(
+  content: string,
+  onVerifyClick: (q: string) => void
+) {
+  const actionRegex = /\[ACTION:VERIFY\|([^|\]]+)\|([^|\]]+)(?:\|([^\]]+))?\]/g;
+  const parts = [];
+  let lastIdx = 0;
+  let match: RegExpExecArray | null;
+
+  while ((match = actionRegex.exec(content)) !== null) {
+    const textBefore = content.substring(lastIdx, match.index);
+    if (textBefore) parts.push(<span key={lastIdx}>{textBefore}</span>);
+
+    const targetQuery = match[1].trim();
+    const targetName = match[2].trim();
+    const noUrut = match[3]?.trim();
+
+    parts.push(
+      <button
+        key={match.index}
+        onClick={() => onVerifyClick(targetQuery)}
+        className="inline-flex items-center gap-1.5 my-1 mx-1 px-3 py-1 bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white font-extrabold rounded-xl text-[11px] shadow-2xs transition touch-manipulation cursor-pointer"
+      >
+        <span>🔍 Buka di Meja Posko {noUrut ? `(No. ${noUrut})` : `(${targetName})`}</span>
+      </button>
+    );
+
+    lastIdx = match.index + match[0].length;
+  }
+
+  const remaining = content.substring(lastIdx);
+  if (remaining) parts.push(<span key={lastIdx}>{remaining}</span>);
+
+  return <>{parts}</>;
 }
 
 export default function AICopilotModal() {
@@ -23,12 +61,19 @@ export default function AICopilotModal() {
   const [customModel, setCustomModel] = useState("SuperAdmin");
   const [showKeyInput, setShowKeyInput] = useState(false);
 
-  const poskoAktif = useAppStore((s) => s.poskoAktif);
-  const sessionPosko = useAppStore((s) => s.sessionPosko);
-  const masterRecords = useAppStore((s) => s.masterRecords);
-  const bastRecords = useAppStore((s) => s.bastRecords);
-  const logPelayanan = useAppStore((s) => s.logPelayanan);
-  const bulogExportRecords = useAppStore((s) => s.bulogExportRecords);
+  const poskoAktif            = useAppStore((s) => s.poskoAktif);
+  const sessionPosko          = useAppStore((s) => s.sessionPosko);
+  const masterRecords        = useAppStore((s) => s.masterRecords);
+  const bastRecords          = useAppStore((s) => s.bastRecords);
+  const logPelayanan         = useAppStore((s) => s.logPelayanan);
+  const bulogExportRecords   = useAppStore((s) => s.bulogExportRecords);
+  const bulogBelumSerahRecords = useAppStore((s) => s.bulogBelumSerahRecords);
+  const masterByNIK          = useAppStore((s) => s.masterByNIK);
+  const masterByName         = useAppStore((s) => s.masterByName);
+  const bastByNIK            = useAppStore((s) => s.bastByNIK);
+
+  const setActiveTab         = useAppStore((s) => s.setActiveTab);
+  const setPoskoSearchQuery  = useAppStore((s) => s.setPoskoSearchQuery);
 
   const [messages, setMessages] = useState<ChatMessage[]>([
     {
@@ -50,6 +95,134 @@ export default function AICopilotModal() {
   const contextData = useMemo(() => {
     const sukses = logPelayanan.filter((l) => l.status === "SUKSES_SALUR").length;
     const pengaduan = logPelayanan.filter((l) => l.status === "ALIH_PENGADUAN").length;
+    const cleanPosko = cleanStr(poskoAktif);
+
+    const isPoskoMatch = (kel: string) => {
+      const cleanKel = cleanStr(kel || "");
+      if (!cleanKel || !cleanPosko) return true;
+      return cleanKel === cleanPosko || cleanKel.includes(cleanPosko) || cleanPosko.includes(cleanKel);
+    };
+
+    // 1. Daftar Sisa Belum Ambil (dengan No. Urut BAST)
+    const poskoBast = bastRecords.filter((b) => isPoskoMatch(b.KELURAHAN_BAST || ""));
+    const servedNIKs = new Set(logPelayanan.filter((l) => l.status === "SUKSES_SALUR").map((l) => fixNIK(l.nik)));
+
+    const sisaBelumAmbilList = poskoBast
+      .filter((b) => {
+        const n = fixNIK(b.NIK);
+        return !n || !servedNIKs.has(n);
+      })
+      .map((b) => ({
+        noUrut: b.NO_URUT ?? null,
+        nama: b.NAMA,
+        nik: b.NIK,
+        noKK: b.NO_KK,
+        rt: b.NO_RT || "—",
+        rw: b.NO_RW || "—",
+        alamat: b.ALAMAT_BAST,
+        kelurahan: b.KELURAHAN_BAST,
+      }))
+      .sort((a, b) => {
+        if (a.noUrut != null && b.noUrut != null) return a.noUrut - b.noUrut;
+        if (a.noUrut != null) return -1;
+        if (b.noUrut != null) return 1;
+        return a.nama.localeCompare(b.nama);
+      });
+
+    // 2. Daftar Undangan Nyasar / Anomali Wilayah (BAST vs Master Data 142k Sebagai Acuan Utama)
+    const undanganNyasarList: { noUrut: number | null; nama: string; nik: string; kelBAST: string; kelMaster: string; alamatMaster: string }[] = [];
+    if (masterRecords.length > 0 && bastRecords.length > 0) {
+      for (const b of poskoBast) {
+        let match = null;
+        if (b.NIK && masterByNIK.has(b.NIK)) {
+          match = masterByNIK.get(b.NIK)!;
+        } else {
+          const found = masterByName.get(cleanStr(b.NAMA));
+          if (found?.length) match = found[0];
+        }
+
+        if (match) {
+          const kMaster = cleanStr(match.KEL_NAME || "");
+          const kBAST = cleanStr(b.KELURAHAN_BAST || "");
+          if (kMaster && kBAST && !kMaster.includes(kBAST) && !kBAST.includes(kMaster)) {
+            undanganNyasarList.push({
+              noUrut: b.NO_URUT ?? null,
+              nama: b.NAMA,
+              nik: b.NIK,
+              kelBAST: b.KELURAHAN_BAST,
+              kelMaster: match.KEL_NAME,
+              alamatMaster: `${match.ALAMAT || ""} (RT ${match.NO_RT || "—"}/RW ${match.NO_RW || "—"})`,
+            });
+          }
+        }
+      }
+    }
+
+    // 3. Daftar PBP Belum Ambil yang Kurang Foto / Belum Diverifikasi di Web Bulog (Lengkap No. Urut BAST)
+    const kurangFotoList: { noUrut: number | null; nama: string; nik: string; statusVerifikasi: string; statusSerah: string; rt: string; rw: string }[] = [];
+    const sourceBelumSerah = bulogBelumSerahRecords.length > 0 ? bulogBelumSerahRecords : bulogExportRecords;
+
+    for (const r of sourceBelumSerah) {
+      const vStatus = String(r.verification_status || "").toLowerCase();
+      const sSerah = String(r.status_serah || "").toLowerCase();
+      const isBelumSerah = sSerah.includes("belum") || r._tipeEkspor === "BELUM_DISERAHKAN";
+      const isKurangFotoOrBelumVerif = !vStatus || vStatus.includes("belum") || vStatus.includes("kurang") || vStatus.includes("photo");
+
+      if (isBelumSerah && isKurangFotoOrBelumVerif) {
+        const nikClean = fixNIK(r.nik) || cleanNum(r.nik);
+        const namaClean = cleanStr(r.nama);
+        const bastMatch = (nikClean ? bastByNIK.get(nikClean) ?? null : null)
+          || (namaClean ? bastRecords.find((b) => cleanStr(b.NAMA) === namaClean) ?? null : null);
+
+        kurangFotoList.push({
+          noUrut: bastMatch?.NO_URUT ?? null,
+          nama: r.nama,
+          nik: r.nik,
+          statusVerifikasi: r.verification_status || "Belum diverifikasi",
+          statusSerah: r.status_serah || "Belum diserahkan",
+          rt: r.rt || bastMatch?.NO_RT || "—",
+          rw: r.rw || bastMatch?.NO_RW || "—",
+        });
+      }
+    }
+
+    kurangFotoList.sort((a, b) => {
+      if (a.noUrut != null && b.noUrut != null) return a.noUrut - b.noUrut;
+      if (a.noUrut != null) return -1;
+      if (b.noUrut != null) return 1;
+      return a.nama.localeCompare(b.nama);
+    });
+
+    // 4. Audit Kejanggalan SOP di Excel Web Bulog
+    const kejanggalanSOPList: { tipe: string; nama: string; nik: string; keterangan: string }[] = [];
+    for (const r of bulogExportRecords) {
+      const sSerah = String(r.status_serah || "").toLowerCase();
+      const isSudahSerah = sSerah.includes("sudah") || sSerah.includes("diterima") || r._tipeEkspor === "SUDAH_DISERAHKAN";
+      const nClean = fixNIK(r.nik) || cleanNum(r.nik);
+      const isServedInPosko = servedNIKs.has(nClean);
+
+      if (isSudahSerah && !isServedInPosko) {
+        kejanggalanSOPList.push({
+          tipe: "POTENSI_TTD_NYASAR",
+          nama: r.nama,
+          nik: r.nik,
+          keterangan: `Excel Bulog mencatat 'Sudah Diserahkan', namun Posko belum pernah memverifikasi fisik warga ini.`,
+        });
+      }
+
+      if (r.status_pbp.toLowerCase().includes("pengganti")) {
+        const nikP = fixNIK(r.nik_pengganti) || cleanNum(r.nik_pengganti);
+        if (!nikP || nikP.length < 16) {
+          kejanggalanSOPList.push({
+            tipe: "NIK_PENGGANTI_KOSONG",
+            nama: r.nama_pengganti || r.nama,
+            nik: r.nik_pengganti || "—",
+            keterangan: `PBP Pengganti (${r.nama_pengganti || r.nama}) NIK Pengganti kosong/kurang 16-digit di Excel Bulog.`,
+          });
+        }
+      }
+    }
+
     return {
       poskoAktif,
       kecamatan: sessionPosko?.kecamatan || "Jakarta Utara",
@@ -61,14 +234,28 @@ export default function AICopilotModal() {
       alokasiKgTersalur: sukses * 30,
       pengaduanCount: pengaduan,
       totalBulogExportRecords: bulogExportRecords.length,
+      totalSisaBelumAmbil: sisaBelumAmbilList.length,
+      daftarSisaBelumAmbil: sisaBelumAmbilList.slice(0, 80),
+      totalUndanganNyasar: undanganNyasarList.length,
+      daftarUndanganNyasar: undanganNyasarList.slice(0, 40),
+      totalKurangFotoBelumAmbil: kurangFotoList.length,
+      daftarKurangFotoBelumAmbil: kurangFotoList.slice(0, 60),
+      totalKejanggalanSOP: kejanggalanSOPList.length,
+      daftarKejanggalanSOP: kejanggalanSOPList.slice(0, 40),
     };
-  }, [poskoAktif, sessionPosko, masterRecords, bastRecords, logPelayanan, bulogExportRecords]);
+  }, [poskoAktif, sessionPosko, masterRecords, bastRecords, logPelayanan, bulogExportRecords, bulogBelumSerahRecords, masterByNIK, masterByName, bastByNIK]);
 
   useEffect(() => {
     if (isOpen) {
       messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
     }
   }, [messages, isOpen]);
+
+  function handleOpenPoskoSearch(searchQuery: string) {
+    setPoskoSearchQuery(searchQuery);
+    setActiveTab("posko");
+    setIsOpen(false);
+  }
 
   function handleSaveKey(key: string) {
     setCustomApiKey(key);
@@ -218,6 +405,30 @@ export default function AICopilotModal() {
             {/* Quick Action Chips */}
             <div className="p-3 bg-slate-100/80 border-b border-slate-200 flex gap-2 overflow-x-auto text-[11px] flex-shrink-0">
               <button
+                onClick={() => handleSend("Tampilkan daftar sisa warga PBP yang BELUM MENGAMBIL BERAS urut No. BAST.")}
+                className="px-2.5 py-1 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-lg whitespace-nowrap shadow-2xs transition"
+              >
+                📋 Sisa PBP Belum Ambil (No. BAST)
+              </button>
+              <button
+                onClick={() => handleSend("Lakukan pemindaian 100% full scan BAST PDF vs Master Data 142k acuan utama untuk mencari UNDANGAN NYASAR di posko ini.")}
+                className="px-2.5 py-1 bg-rose-600 hover:bg-rose-700 text-white font-bold rounded-lg whitespace-nowrap shadow-2xs transition"
+              >
+                🚨 Cari Undangan Nyasar (Master 142k)
+              </button>
+              <button
+                onClick={() => handleSend("Cari dan tampilkan daftar warga PBP yang BELUM AMBIL BERAS yang status fotonya KURANG FOTO / BELUM DIVERIFIKASI di Excel Bulog beserta No. Urut BAST-nya.")}
+                className="px-2.5 py-1 bg-amber-600 hover:bg-amber-700 text-white font-bold rounded-lg whitespace-nowrap shadow-2xs transition"
+              >
+                📸 PBP Belum Ambil Kurang Foto (No. BAST)
+              </button>
+              <button
+                onClick={() => handleSend("Audit dan cari kejanggalan atau hal di luar SOP dari file Excel Web Bulog (potensi TTD nyasar, NIK pengganti kosong, pengganti non-DTKS).")}
+                className="px-2.5 py-1 bg-violet-600 hover:bg-violet-700 text-white font-bold rounded-lg whitespace-nowrap shadow-2xs transition"
+              >
+                ⚠️ Audit Kejanggalan SOP Bulog
+              </button>
+              <button
                 onClick={() => handleSend("Bagaimana ringkasan SOP penyaluran beras 30 Kg di meja posko?")}
                 className="px-2.5 py-1 bg-white hover:bg-slate-200 text-slate-800 font-bold rounded-lg whitespace-nowrap border border-slate-300 shadow-2xs transition"
               >
@@ -228,18 +439,6 @@ export default function AICopilotModal() {
                 className="px-2.5 py-1 bg-white hover:bg-slate-200 text-slate-800 font-bold rounded-lg whitespace-nowrap border border-slate-300 shadow-2xs transition"
               >
                 📊 Analisis Posko
-              </button>
-              <button
-                onClick={() => handleSend("Apa syarat dan aturan pengisian dokumen SPTJM Pengganti?")}
-                className="px-2.5 py-1 bg-white hover:bg-slate-200 text-slate-800 font-bold rounded-lg whitespace-nowrap border border-slate-300 shadow-2xs transition"
-              >
-                📄 Aturan SPTJM
-              </button>
-              <button
-                onClick={() => handleSend("Bagaimana solusi jika tanda tangan di BAST kertas terlanjur salah baris/nyasar?")}
-                className="px-2.5 py-1 bg-white hover:bg-slate-200 text-slate-800 font-bold rounded-lg whitespace-nowrap border border-slate-300 shadow-2xs transition"
-              >
-                ⚠️ TTD Nyasar
               </button>
             </div>
 
@@ -260,11 +459,17 @@ export default function AICopilotModal() {
                   <div
                     className={`max-w-[85%] p-3.5 rounded-2xl text-xs leading-relaxed ${
                       m.role === "user"
-                        ? "bg-bulog-blue text-white rounded-tr-xs shadow-xs"
-                        : "bg-white text-slate-900 border border-slate-200 rounded-tl-xs shadow-2xs"
+                        ? "bg-bulog-blue text-white rounded-tr-xs shadow-xs font-medium"
+                        : "bg-white text-slate-900 border border-slate-200 rounded-tl-xs shadow-2xs font-medium"
                     }`}
                   >
-                    <p className="whitespace-pre-wrap font-medium">{m.content}</p>
+                    {m.role === "user" ? (
+                      <p className="whitespace-pre-wrap">{m.content}</p>
+                    ) : (
+                      <div className="whitespace-pre-wrap">
+                        {renderAiMessageContent(m.content, handleOpenPoskoSearch)}
+                      </div>
+                    )}
                   </div>
                 </div>
               ))}

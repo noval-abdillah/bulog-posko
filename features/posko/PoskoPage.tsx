@@ -32,6 +32,9 @@ export default function PoskoPage() {
   const poskoAktif    = useAppStore((s) => s.poskoAktif);
   const toast = useToast();
 
+  const poskoSearchQuery = useAppStore((s) => s.poskoSearchQuery);
+  const setPoskoSearchQuery = useAppStore((s) => s.setPoskoSearchQuery);
+
   const [query, setQuery] = useState("");
   const [showResult, setShowResult]       = useState(false);
   const [showNotFound, setShowNotFound]   = useState(false);
@@ -74,8 +77,8 @@ export default function PoskoPage() {
     return () => window.removeEventListener("keydown", onKeydown);
   }, [bersihkan]);
 
-  function cekData() {
-    const rawQ = query.trim();
+  const cekData = useCallback((overrideQuery?: string) => {
+    const rawQ = (overrideQuery ?? query).trim();
     if (!rawQ) return;
     if (!readyScan) {
       mainkanSuaraPeringatan();
@@ -113,7 +116,18 @@ export default function PoskoPage() {
     } else {
       tampilkan(hasil.matchesMaster[0] ?? null, hasil.matchBAST, hasil.matchMode);
     }
-  }
+  }, [query, readyScan, poskoAktif, poskoBastRecords, masterRecords, masterByNIK, masterByName, bastByNIK, bastByNoUrut, masterByKK, toast]);
+
+  useEffect(() => {
+    if (poskoSearchQuery) {
+      const q = poskoSearchQuery;
+      setQuery(q);
+      setPoskoSearchQuery("");
+      setTimeout(() => {
+        cekData(q);
+      }, 50);
+    }
+  }, [poskoSearchQuery, setPoskoSearchQuery, cekData]);
 
   function tampilkan(master: MasterRow | null, bast: BastRow | null, mode: string) {
     setRowMaster(master);
@@ -275,7 +289,7 @@ export default function PoskoPage() {
               variant="primary"
               size="lg"
               className="flex-1 sm:flex-none"
-              onClick={cekData}
+              onClick={() => cekData()}
               disabled={!readyScan || !query.trim()}
               icon={<svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>}
             >

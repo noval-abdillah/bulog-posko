@@ -70,6 +70,7 @@ interface AppState {
   sidebarOpen: boolean;
   toasts: ToastItem[];
   poskoAktif: string;
+  poskoSearchQuery: string;
   isRestoredFromDB: boolean;
 
   /* --- data bisnis --- */
@@ -110,6 +111,7 @@ interface AppState {
   toggleSidebar: () => void;
   setSidebarOpen: (open: boolean) => void;
   setPoskoAktif: (posko: string) => void;
+  setPoskoSearchQuery: (query: string) => void;
   tambahToast: (type: ToastItem["type"], message: string, onClickTab?: ActiveTab) => void;
   hapusToast: (id: string) => void;
 
@@ -151,6 +153,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   sidebarOpen: true,
   toasts: [],
   poskoAktif: "Rawa Badak Utara",
+  poskoSearchQuery: "",
   isRestoredFromDB: false,
 
   masterRecords: [],
@@ -192,6 +195,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   toggleSidebar: () => set((s) => ({ sidebarOpen: !s.sidebarOpen })),
   setSidebarOpen: (open) => set({ sidebarOpen: open }),
   setPoskoAktif: (posko) => set({ poskoAktif: posko }),
+  setPoskoSearchQuery: (query) => set({ poskoSearchQuery: query }),
 
   tambahToast: (type, message, onClickTab) => {
     const id = Math.random().toString(36).slice(2);
