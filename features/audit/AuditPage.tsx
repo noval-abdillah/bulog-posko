@@ -6,7 +6,7 @@
  */
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useAppStore } from "@/store/appStore";
 import { useExcelImport } from "@/hooks/useExcelImport";
 import { parseRtRwFromText } from "@/services/bastParser";
@@ -34,6 +34,14 @@ const PAGE_SIZE = 50;
 type ModeAuditTab = "selisih3way" | "bastAudit";
 type SortKey = "nama" | "status_pbp" | "kelurahan";
 type SortDir = "asc" | "desc";
+
+type TipePenanda = "VERIFIED" | "REVIEW" | "MISMATCH";
+
+const LABELS_PENANDA: Record<TipePenanda, { label: string; bg: string; text: string; icon: string }> = {
+  VERIFIED: { label: "Terverifikasi Fisik BAST", bg: "bg-emerald-100 text-emerald-900 border-emerald-300 font-extrabold", text: "Terverifikasi Fisik", icon: "✅" },
+  REVIEW:   { label: "Perlu Ditinjau Ulang", bg: "bg-amber-100 text-amber-900 border-amber-300 font-extrabold", text: "Perlu Ditinjau", icon: "⚠️" },
+  MISMATCH: { label: "Ditemukan Ketidaksesuaian", bg: "bg-rose-100 text-rose-900 border-rose-300 font-extrabold", text: "Ketidaksesuaian", icon: "❌" },
+};
 
 type WilayahSelisihOption = {
   key: string;
@@ -235,6 +243,73 @@ export default function AuditPage() {
   const [aiInsightText, setAiInsightText]       = useState("");
   const [aiInsightLoading, setAiInsightLoading] = useState(false);
 
+  // State Penanda Fisik BAST
+  const [penandaMap, setPenandaMap] = useState<Record<string, TipePenanda>>({});
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const storageKey = `audit_penanda_${cleanStr(poskoAktif)}`;
+    const saved = localStorage.getItem(storageKey);
+    if (saved) {
+      try {
+        setPenandaMap(JSON.parse(saved));
+      } catch {
+        setPenandaMap({});
+      }
+    } else {
+      setPenandaMap({});
+    }
+  }, [poskoAktif]);
+
+  function getRowPenandaKey(r: AuditRow): string {
+    const nikClean = fixNIK(r.nik) || cleanNum(r.nik);
+    if (nikClean && nikClean !== "—") return `nik:${nikClean}`;
+    return `row:${cleanStr(r.nama)}_${cleanStr(r.kelurahan)}_${r.no || ""}`;
+  }
+
+  function togglePenandaRow(r: AuditRow) {
+    const key = getRowPenandaKey(r);
+    setPenandaMap((prev) => {
+      const current = prev[key];
+      let next: TipePenanda | undefined;
+      if (!current) next = "VERIFIED";
+      else if (current === "VERIFIED") next = "REVIEW";
+      else if (current === "REVIEW") next = "MISMATCH";
+      else next = undefined;
+
+      const updated = { ...prev };
+      if (next) updated[key] = next;
+      else delete updated[key];
+
+      const storageKey = `audit_penanda_${cleanStr(poskoAktif)}`;
+      localStorage.setItem(storageKey, JSON.stringify(updated));
+      return updated;
+    });
+  }
+
+  function handleTandaiHalaman(status: TipePenanda = "VERIFIED") {
+    setPenandaMap((prev) => {
+      const updated = { ...prev };
+      paginated.forEach((r) => {
+        const key = getRowPenandaKey(r);
+        updated[key] = status;
+      });
+      const storageKey = `audit_penanda_${cleanStr(poskoAktif)}`;
+      localStorage.setItem(storageKey, JSON.stringify(updated));
+      return updated;
+    });
+    toast.sukses(`Semua data di halaman ${page} ditandai '${LABELS_PENANDA[status].label}'.`);
+  }
+
+  function handleResetPenandaPosko() {
+    if (confirm(`Reset semua penanda fisik BAST untuk Posko ${poskoAktif}?`)) {
+      setPenandaMap({});
+      const storageKey = `audit_penanda_${cleanStr(poskoAktif)}`;
+      localStorage.removeItem(storageKey);
+      toast.info("Penanda fisik BAST berhasil di-reset.");
+    }
+  }
+
   const recordsUntukAuditFisik = useMemo(() => {
     if (scopedSudahSerah.length > 0 || scopedBelumSerah.length > 0) {
       return [...scopedSudahSerah, ...scopedBelumSerah];
@@ -408,7 +483,8 @@ export default function AuditPage() {
           r.nama.toUpperCase().includes(up) ||
           r.nik.includes(up) ||
           r.noKK.includes(up) ||
-          r.alamat.toUpperCase().includes(up)
+          r.alamat.toUpperCase().includes(up) ||
+          (r.noUrut != null && String(r.noUrut).includes(up))
       );
     }
     return rows;
@@ -423,15 +499,22 @@ export default function AuditPage() {
     if (filter === "Semua") {
       const up = search.trim().toUpperCase();
       if (up) {
-        rows = rows.filter(
-          (r) =>
+        rows = rows.filter((r) => {
+          const nClean = fixNIK(r.nik) || cleanNum(r.nik);
+          const bMatch = nClean ? bastByNIK.get(nClean) : scopedBastRecords.find((b) => cleanStr(b.NAMA) === cleanStr(r.nama));
+          const noU = bMatch?.NO_URUT ? String(bMatch.NO_URUT) : "";
+
+          return (
             r.nama.toUpperCase().includes(up) ||
             r.nama_pengganti.toUpperCase().includes(up) ||
             String(r.nik_pengganti).includes(up) ||
             String(r.nik).includes(up) ||
+            String(r.no || "").includes(up) ||
             String(r.no_bast || "").toUpperCase().includes(up) ||
-            String(r.kelurahan || "").toUpperCase().includes(up)
-        );
+            String(r.kelurahan || "").toUpperCase().includes(up) ||
+            (noU !== "" && noU.includes(up))
+          );
+        });
       }
     } else {
       rows = [...rows].sort((a, b) => {
@@ -441,7 +524,19 @@ export default function AuditPage() {
       });
     }
     return rows;
-  }, [recordsUntukAuditFisik, semuaRows, filter, search, sortKey, sortDir]);
+  }, [recordsUntukAuditFisik, semuaRows, filter, search, sortKey, sortDir, bastByNIK, scopedBastRecords]);
+
+  const countVerifiedFisik = useMemo(() => {
+    return filtered.filter((r) => penandaMap[getRowPenandaKey(r)] === "VERIFIED").length;
+  }, [filtered, penandaMap]);
+
+  const countReviewFisik = useMemo(() => {
+    return filtered.filter((r) => penandaMap[getRowPenandaKey(r)] === "REVIEW").length;
+  }, [filtered, penandaMap]);
+
+  const countMismatchFisik = useMemo(() => {
+    return filtered.filter((r) => penandaMap[getRowPenandaKey(r)] === "MISMATCH").length;
+  }, [filtered, penandaMap]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   const paginated  = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
@@ -850,8 +945,14 @@ export default function AuditPage() {
             ? `${masterPBP.ALAMAT || ""} RT ${masterPBP.NO_RT !== "" ? masterPBP.NO_RT : "—"}/RW ${masterPBP.NO_RW !== "" ? masterPBP.NO_RW : "—"}`.trim()
             : bastPBP?.ALAMAT_BAST || "—");
 
+      const pKey = getRowPenandaKey(r);
+      const pStatus = penandaMap[pKey];
+      const pLabel = pStatus ? LABELS_PENANDA[pStatus].label : "Belum Ditandai";
+
       return {
         No: idx + 1,
+        "No. Urut BAST": r.no_bast || (bastPBP?.NO_URUT ? `No. ${bastPBP.NO_URUT}` : "—"),
+        "Status Penanda Fisik BAST": pLabel,
         "Nomor BAST": r.no_bast || `BAST-${r.kelurahan || poskoAktif}`,
         Kelurahan: r.kelurahan || poskoAktif,
         "Nama PBP Awal": r.nama,
@@ -1448,8 +1549,10 @@ export default function AuditPage() {
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
               <StatCard label="Total Realisasi" value={statistik.total.toLocaleString("id-ID")}
                 icon={<svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="3" y1="15" x2="21" y2="15"/></svg>} />
-              <StatCard label="PBP Normal" value={statistik.normal.toLocaleString("id-ID")} variant="success"
-                icon={<svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="20 6 9 17 4 12"/></svg>} />
+              <StatCard label="✅ Terverifikasi Fisik" value={countVerifiedFisik.toLocaleString("id-ID")} variant="success"
+                icon={<svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="20 6 9 17 4 12"/></svg>}
+                sub={`${countReviewFisik} ditinjau · ${countMismatchFisik} ketidaksesuaian`}
+              />
               <StatCard label="PBP Pengganti" value={statistik.pengganti.toLocaleString("id-ID")} variant={statistik.pengganti > 0 ? "warning" : "default"}
                 icon={<svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>} />
               <StatCard label="Perwakilan (Beda/1 KK)" value={statistik.perwakilan.toLocaleString("id-ID")} variant="blue"
@@ -1463,9 +1566,17 @@ export default function AuditPage() {
             <div className="p-4 sm:p-5 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
               <div>
                 <h3 className="text-sm font-bold text-slate-900">Hasil Analisa BAST Fisik vs Sistem</h3>
-                <p className="text-xs text-slate-500 mt-0.5">{filtered.length.toLocaleString("id-ID")} baris ditampilkan</p>
+                <p className="text-xs text-slate-500 mt-0.5">{filtered.length.toLocaleString("id-ID")} baris ditampilkan • <span className="font-bold text-emerald-700">{countVerifiedFisik} Terverifikasi Fisik</span></p>
               </div>
-              <div className="flex gap-2 w-full sm:w-auto">
+              <div className="flex gap-2 w-full sm:w-auto flex-wrap sm:flex-nowrap">
+                <Button variant="success" size="sm" className="flex-1 sm:flex-none" onClick={() => handleTandaiHalaman("VERIFIED")}>
+                  ✅ Tandai Hal Ini
+                </Button>
+                {Object.keys(penandaMap).length > 0 && (
+                  <Button variant="secondary" size="sm" className="flex-1 sm:flex-none" onClick={handleResetPenandaPosko}>
+                    🔄 Reset Penanda
+                  </Button>
+                )}
                 <Button
                   variant="primary"
                   size="sm"
@@ -1540,6 +1651,8 @@ export default function AuditPage() {
                   const nClean = fixNIK(row.nik) || cleanNum(row.nik);
                   const bMatch = nClean ? bastByNIK.get(nClean) : scopedBastRecords.find((b) => cleanStr(b.NAMA) === cleanStr(row.nama));
                   const noU = bMatch?.NO_URUT;
+                  const pKey = getRowPenandaKey(row);
+                  const penanda = penandaMap[pKey];
 
                   return (
                     <div key={idx} className="p-4 space-y-2 bg-white active:bg-slate-50 transition">
@@ -1563,6 +1676,15 @@ export default function AuditPage() {
                         <p><span className="text-slate-400 font-normal">Catatan:</span> {row.notes} ({row.kelurahan})</p>
                       </div>
                       {renderRekomendasi(row)}
+                      <button
+                        onClick={() => togglePenandaRow(row)}
+                        className={`w-full py-2 px-3 rounded-xl text-xs font-bold border transition flex items-center justify-center gap-1.5 touch-manipulation ${
+                          penanda ? LABELS_PENANDA[penanda].bg : "bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100"
+                        }`}
+                      >
+                        <span>{penanda ? LABELS_PENANDA[penanda].icon : "☐"}</span>
+                        <span>{penanda ? LABELS_PENANDA[penanda].label : "Tandai Verifikasi Fisik BAST"}</span>
+                      </button>
                     </div>
                   );
                 })
@@ -1575,6 +1697,7 @@ export default function AuditPage() {
                 <thead className="bg-slate-50 text-slate-600 uppercase font-bold text-[10px] border-b border-slate-200 sticky top-0">
                   <tr>
                     <th className="px-4 py-3">No</th>
+                    <th className="px-4 py-3">Penanda Fisik BAST</th>
                     <th className="px-4 py-3 cursor-pointer hover:text-bulog-blue" onClick={() => handleSort("nama")}>
                       PBP Asli <SortIcon col="nama" />
                     </th>
@@ -1592,7 +1715,7 @@ export default function AuditPage() {
                 <tbody className="divide-y divide-slate-100">
                   {paginated.length === 0 ? (
                     <tr>
-                      <td colSpan={7}>
+                      <td colSpan={8}>
                         <EmptyState
                           icon={<svg className="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/></svg>}
                           title={bulogExportRecords.length === 0 ? "Belum ada data ekspor" : "Tidak ada data sesuai filter"}
@@ -1607,10 +1730,24 @@ export default function AuditPage() {
                       const nClean = fixNIK(row.nik) || cleanNum(row.nik);
                       const bMatch = nClean ? bastByNIK.get(nClean) : scopedBastRecords.find((b) => cleanStr(b.NAMA) === cleanStr(row.nama));
                       const noU = bMatch?.NO_URUT;
+                      const pKey = getRowPenandaKey(row);
+                      const penanda = penandaMap[pKey];
 
                       return (
                         <tr key={idx} className="hover:bg-slate-50 transition">
                           <td className="px-4 py-3 text-slate-400 font-bold">{(page - 1) * PAGE_SIZE + idx + 1}</td>
+                          <td className="px-4 py-3">
+                            <button
+                              onClick={() => togglePenandaRow(row)}
+                              className={`px-2.5 py-1 rounded-xl text-[11px] font-bold border transition flex items-center gap-1.5 touch-manipulation whitespace-nowrap ${
+                                penanda ? LABELS_PENANDA[penanda].bg : "bg-slate-100 text-slate-600 border-slate-200 hover:bg-slate-200"
+                              }`}
+                              title="Klik untuk mengubah status penanda (Verified ➔ Review ➔ Mismatch ➔ Batal)"
+                            >
+                              <span>{penanda ? LABELS_PENANDA[penanda].icon : "☐"}</span>
+                              <span>{penanda ? LABELS_PENANDA[penanda].text : "Tandai Fisik"}</span>
+                            </button>
+                          </td>
                           <td className="px-4 py-3">
                             <div className="font-bold text-slate-900 flex items-center gap-1.5 flex-wrap">
                               {noU != null && (

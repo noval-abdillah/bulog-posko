@@ -87,13 +87,13 @@ export default function DataBermasalahPage() {
           </div>
           <div>
             <span className="px-3 py-1 bg-amber-100 text-amber-900 rounded-full text-[10px] font-black uppercase tracking-wider">
-              Dalam Tahap Pengembangan / Maintenance
+              Dalam Pemeliharaan Sistem · Berlaku Seluruh Kelurahan
             </span>
             <h2 className="text-lg font-black text-slate-900 mt-2">
               Modul Pelacakan Data Bermasalah
             </h2>
             <p className="text-xs text-slate-600 mt-1.5 leading-relaxed">
-              Modul pelacakan &amp; audit jejak data bermasalah sedang ditingkatkan oleh Tim Pengembang untuk mendukung integrasi otomatisasi data tingkat lanjut.
+              Modul pelacakan &amp; audit jejak data bermasalah sedang ditingkatkan oleh Tim Pengembang untuk <b>seluruh 31 Kelurahan &amp; 6 Kecamatan Kota Jakarta Utara</b>.
             </p>
           </div>
 

@@ -46,13 +46,16 @@ export function filterAuditRows(
   }
 
   if (search) {
-    const upper = search.toUpperCase();
+    const upper = search.trim().toUpperCase();
     filtered = filtered.filter(
       (r) =>
         r.nama.toUpperCase().includes(upper) ||
         r.nama_pengganti.toUpperCase().includes(upper) ||
         String(r.nik_pengganti).includes(upper) ||
-        String(r.nik).includes(upper)
+        String(r.nik).includes(upper) ||
+        String(r.no || "").includes(upper) ||
+        String(r.no_bast || "").toUpperCase().includes(upper) ||
+        String(r.kelurahan || "").toUpperCase().includes(upper)
     );
   }
 

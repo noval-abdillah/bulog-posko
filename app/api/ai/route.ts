@@ -19,7 +19,7 @@ export async function POST(req: Request) {
       clientApiKey ||
       process.env.NINEROUTER_API_KEY ||
       process.env.NEXT_PUBLIC_NINEROUTER_API_KEY ||
-      "9router-local-key";
+      "sk-9router-superadmin-key";
 
     const rawBaseUrl = clientBaseUrl || process.env.NINEROUTER_BASE_URL || "http://127.0.0.1:20128/v1";
     const baseUrl = rawBaseUrl.replace(/\/+$/, "");
