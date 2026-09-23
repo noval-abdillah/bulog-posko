@@ -33,8 +33,8 @@ export function fixNIK(val: unknown): string {
     }
   }
 
-  // Ambil digit saja
-  const digitsOnly = raw.replace(/[^0-9]/g, "");
+  const normalized = raw.replace(/[OD]/gi, "0").replace(/[ILI]/gi, "1").replace(/B/gi, "8").replace(/S/gi, "5").replace(/Z/gi, "2");
+  const digitsOnly = normalized.replace(/[^0-9]/g, "");
 
   if (digitsOnly.length === 0) return "";
 

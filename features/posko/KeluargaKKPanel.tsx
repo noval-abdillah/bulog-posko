@@ -81,7 +81,7 @@ export default function KeluargaKKPanel({ noKK, currentNIK, onPilihAnggota }: Pr
       {isSudahDiserahkan1KK ? (
         <div className="p-4 rounded-xl bg-rose-50 border-2 border-rose-300 text-rose-950 flex items-start gap-3 shadow-xs">
           <div className="w-10 h-10 rounded-lg bg-rose-100 flex items-center justify-center text-rose-600 flex-shrink-0 font-bold text-lg">
-            🛑
+            <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><circle cx="12" cy="12" r="10"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
           </div>
           <div className="flex-1">
             <div className="flex items-center justify-between flex-wrap gap-2">
@@ -96,7 +96,7 @@ export default function KeluargaKKPanel({ noKK, currentNIK, onPilihAnggota }: Pr
               {anggotaSudahSalur?.waktu ? ` pada jam ${anggotaSudahSalur.waktu}` : ""}.
             </p>
             <p className="text-[11px] text-rose-700 font-bold mt-1.5">
-              ⚠️ Aturan Perum BULOG: Aplikasi menolak penyerahan 2 kali dalam 1 Kartu Keluarga yang sama!
+              Aturan Perum BULOG: Aplikasi menolak penyerahan 2 kali dalam 1 Kartu Keluarga yang sama!
             </p>
           </div>
         </div>

@@ -98,7 +98,7 @@ export interface ActivePBP {
   posko: string;
 }
 
-export type ActiveTab = "dashboard" | "posko" | "log" | "audit" | "bermasalah" | "panduan" | "chat";
+export type ActiveTab = "dashboard" | "posko" | "log" | "audit" | "panduan" | "chat" | "supervisor";
 
 export interface ChatPoskoItem {
   id: string;

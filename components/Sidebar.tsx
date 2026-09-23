@@ -30,12 +30,12 @@ export default function Sidebar() {
   const sidebarOpen          = useAppStore((s) => s.sidebarOpen);
   const setSidebarOpen       = useAppStore((s) => s.setSidebarOpen);
   const logPenggantiTertolak = useAppStore((s) => s.logPenggantiTertolak);
-  const logBermasalah        = useAppStore((s) => s.logBermasalah);
   const poskoAktif           = useAppStore((s) => s.poskoAktif);
   const setPoskoAktif        = useAppStore((s) => s.setPoskoAktif);
   const sessionPosko         = useAppStore((s) => s.sessionPosko);
   const setSessionPosko      = useAppStore((s) => s.setSessionPosko);
   const unreadChatCount      = useAppStore((s) => s.unreadChatCount);
+  const poskoYangDiload      = useAppStore((s) => s.poskoYangDiload);
 
   const navItems: NavItem[] = [
     {
@@ -88,17 +88,6 @@ export default function Sidebar() {
       ),
     },
     {
-      id: "bermasalah",
-      label: "Data Bermasalah",
-      badge: logBermasalah.length,
-      icon: (
-        <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-          <path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/>
-          <line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>
-        </svg>
-      ),
-    },
-    {
       id: "panduan",
       label: "Panduan Penggunaan",
       icon: (
@@ -110,6 +99,18 @@ export default function Sidebar() {
       ),
     },
   ];
+
+  const supervisorNavItem: NavItem[] = sessionPosko?.isSuper
+    ? [{
+        id: "supervisor" as const,
+        label: "Manajemen Posko",
+        icon: (
+          <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/>
+          </svg>
+        ),
+      }]
+    : [];
 
   async function handleLogout() {
     await logoutPosko();
@@ -134,7 +135,7 @@ export default function Sidebar() {
 
       {/* Nav Items */}
       <nav className="flex-1 px-3 py-4 space-y-1">
-        {navItems.map((item) => {
+        {[...navItems, ...supervisorNavItem].map((item) => {
           const isActive = activeTab === item.id;
           return (
             <button
@@ -151,9 +152,7 @@ export default function Sidebar() {
               {sidebarOpen && <span className="truncate">{item.label}</span>}
               {sidebarOpen && item.badge != null && item.badge > 0 && (
                 <span className={`ml-auto text-[10px] font-black px-1.5 py-0.5 rounded-full min-w-[20px] text-center
-                  ${item.id === "bermasalah"
-                    ? "bg-rose-500 text-white"
-                    : item.id === "chat"
+                  ${item.id === "chat"
                     ? "bg-emerald-500 text-white"
                     : isActive ? "bg-bulog-blue text-white" : "bg-white/20 text-white"}`}>
                   {item.badge}
@@ -190,6 +189,14 @@ export default function Sidebar() {
             <div className="w-full px-3 py-2 rounded-xl bg-white/10 text-white text-xs font-bold border border-white/20 flex items-center justify-between">
               <span className="truncate">{poskoAktif}</span>
               <span className="text-[9px] text-white/50">{sessionPosko?.kecamatan}</span>
+            </div>
+          )}
+
+          {/* poskoYangDiload info */}
+          {sessionPosko?.isSuper && poskoYangDiload && sidebarOpen && (
+            <div className="px-3 py-2 rounded-xl bg-emerald-500/20 border border-emerald-500/30">
+              <p className="text-[9px] font-bold text-emerald-300 uppercase tracking-wider">Sedang Melihat Data</p>
+              <p className="text-xs font-black text-white truncate">{poskoYangDiload}</p>
             </div>
           )}
 

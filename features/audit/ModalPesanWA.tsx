@@ -48,7 +48,7 @@ export default function ModalPesanWA({
       const isUnassigned = (!rt || rt === "—" || rt === "-") && (!rw || rw === "—" || rw === "-");
       const key = isUnassigned ? "BELUM_TERIDENTIFIKASI" : `${rt}|${rw}`;
       const label = isUnassigned
-        ? "📌 Warga Belum Teridentifikasi RT/RW (RT — / RW —)"
+        ? "Warga Belum Teridentifikasi RT/RW (RT — / RW —)"
         : `RT ${rt || "—"}${rw && rw !== "—" ? ` / RW ${rw}` : ""}`;
 
       const existing = map.get(key);
@@ -108,18 +108,14 @@ export default function ModalPesanWA({
 
   async function handleAiPersonalize() {
     setAiLoading(true);
-    toast.info("🤖 AI 9router sedang menyusun pesan WA terpersonalisasi...");
+    toast.info("AI 9router sedang menyusun pesan WA terpersonalisasi...");
     try {
-      const customKey = localStorage.getItem("ninerouter_api_key") ?? undefined;
-      const customModel = localStorage.getItem("ninerouter_model") ?? undefined;
       const text = await aiPersonalizeWaMsg(
         aiTone,
         currentRt,
         currentRw,
         kelurahan,
-        currentList.slice(0, 50).map((w) => ({ NAMA: w.nama, NIK: w.nik, RT: w.rt, RW: w.rw, ALAMAT: w.alamat })),
-        customKey,
-        customModel
+        currentList.slice(0, 50).map((w) => ({ NAMA: w.nama, NIK: w.nik, RT: w.rt, RW: w.rw, ALAMAT: w.alamat }))
       );
       setAiPesan(text);
       toast.sukses("Pesan WA terpersonalisasi AI berhasil disusun!");
@@ -148,7 +144,7 @@ export default function ModalPesanWA({
         <div className="px-5 py-4 bg-slate-50 border-b border-slate-200 flex items-center justify-between">
           <div className="flex items-center gap-2.5">
             <div className="w-9 h-9 rounded-xl bg-emerald-100 flex items-center justify-center text-emerald-700 font-bold text-base flex-shrink-0">
-              💬
+              <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15a4 4 0 0 1-4 4H8l-5 3V7a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4z"/></svg>
             </div>
             <div>
               <h3 className="text-sm font-bold text-slate-900">
@@ -182,7 +178,7 @@ export default function ModalPesanWA({
                 onChange={(e) => setSelectedRtKey(e.target.value)}
                 className="w-full px-3 py-2 border border-slate-300 rounded-xl text-xs font-bold bg-white focus:ring-2 focus:ring-emerald-500"
               >
-                <option value="SEMUA">🌐 Rekap Semua RT/RW ({wargaList.length} Warga)</option>
+                <option value="SEMUA">Rekap Semua RT/RW ({wargaList.length} Warga)</option>
                 {daftarRT.map(([key, data]) => (
                   <option key={key} value={key}>
                     {data.label} ({data.list.length} Warga)
@@ -209,7 +205,7 @@ export default function ModalPesanWA({
           <div className="p-3 bg-emerald-50/60 border border-emerald-200 rounded-2xl space-y-2">
             <div className="flex items-center justify-between">
               <span className="text-[11px] font-black text-emerald-900 flex items-center gap-1.5">
-                <span>✨</span> AI Smart WA Personalizer (9router AI)
+                <span>AI Smart WA Personalizer (9router AI)</span>
               </span>
               {aiPesan && (
                 <button
@@ -226,16 +222,16 @@ export default function ModalPesanWA({
                 onChange={(e) => setAiTone(e.target.value)}
                 className="px-2.5 py-1.5 border border-emerald-300 rounded-xl text-xs font-bold bg-white text-emerald-900 focus:outline-none flex-1"
               >
-                <option value="Santun & Persuasif">🤝 Tone: Santun &amp; Persuasif</option>
-                <option value="Formal Resmi">🏛️ Tone: Formal Resmi Dinas</option>
-                <option value="Urgen / H-1 Penutupan Posko">🚨 Tone: Urgen (H-1 Penutupan)</option>
+                <option value="Santun & Persuasif">Tone: Santun &amp; Persuasif</option>
+                <option value="Formal Resmi">Tone: Formal Resmi Dinas</option>
+                <option value="Urgen / H-1 Penutupan Posko">Tone: Urgen (H-1 Penutupan)</option>
               </select>
               <Button
                 variant="success"
                 size="sm"
                 onClick={handleAiPersonalize}
                 disabled={aiLoading || currentList.length === 0}
-                icon={<span>✨</span>}
+                icon={<svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8z"/></svg>}
               >
                 {aiLoading ? "AI Menyusun..." : "AI Personalize Pesan"}
               </Button>
@@ -248,7 +244,7 @@ export default function ModalPesanWA({
                 Pratinjau Pesan WA — <span className="text-emerald-700 font-extrabold">{targetLabel}</span> ({activeCount} Warga):
               </label>
               <span className="text-[10px] text-slate-400 font-mono">
-                {aiPesan ? "✨ Text Terpersonalisasi AI" : "Teks Default"}
+                {aiPesan ? "Teks Terpersonalisasi AI" : "Teks Default"}
               </span>
             </div>
             <textarea

@@ -36,6 +36,9 @@ import {
   bersihkanSemuaDB,
 } from "@/lib/db";
 import { cleanStr, cleanNum, fixNIK } from "@/lib/utils";
+import { kirimLogPelayananKeSupabase, upsertRingkasanKelurahan } from "@/lib/supabasePosko";
+
+type AuditPenandaStatus = "VERIFIED" | "REVIEW" | "MISMATCH";
 
 function getAuditRowKey(row: AuditRow, idx?: number): string {
   const nik = fixNIK(row.nik) || cleanNum(row.nik);
@@ -84,6 +87,9 @@ interface AppState {
   logPenggantiTertolak: LogPenggantiTertolak[];
   anomaliRecordsCache: AnomaliRow[];
   currentActivePBP: ActivePBP | null;
+  auditPenandaMap: Record<string, AuditPenandaStatus>;
+  auditFisikRecords: AuditRow[];
+  poskoYangDiload: string | null;
 
   /* --- auth & chat --- */
   sessionPosko: SessionPosko | null;
@@ -123,6 +129,9 @@ interface AppState {
   setBulogSudahSerahRecords: (records: AuditRow[]) => void;
   setBulogBelumSerahRecords: (records: AuditRow[]) => void;
   setCurrentActivePBP: (pbp: ActivePBP | null) => void;
+  setAuditPenandaMap: (map: Record<string, AuditPenandaStatus>) => void;
+  setAuditFisikRecords: (rows: AuditRow[]) => void;
+  setPoskoYangDiload: (kel: string | null) => void;
   tambahLogPelayanan: (entry: LogEntry) => void;
   bersihkanLog: () => void;
   tambahPenggantiTertolak: (entry: LogPenggantiTertolak) => void;
@@ -166,6 +175,9 @@ export const useAppStore = create<AppState>((set, get) => ({
   logPenggantiTertolak: [],
   anomaliRecordsCache: [],
   currentActivePBP: null,
+  auditPenandaMap: {},
+  auditFisikRecords: [],
+  poskoYangDiload: null,
 
   sessionPosko: null,
   chatMessages: [],
@@ -296,6 +308,12 @@ export const useAppStore = create<AppState>((set, get) => ({
     simpanBastKeDB(merged, loadedBASTFiles).catch((err) =>
       console.error("Gagal simpan BAST ke IDB:", err)
     );
+    upsertRingkasanKelurahan({
+      kelurahan,
+      kecamatan: get().sessionPosko?.kecamatan ?? "",
+      bast_jumlah: newRecords.length,
+      bast_diupload_at: new Date().toISOString(),
+    }).catch(() => undefined);
   },
 
   setBulogExportRecords: (records) => {
@@ -310,6 +328,12 @@ export const useAppStore = create<AppState>((set, get) => ({
     const currentCombined = dedupeAuditRows([...dedupedSudah, ...get().bulogBelumSerahRecords]);
     set({ bulogExportRecords: currentCombined });
     simpanAuditKeDB(currentCombined).catch((err) => console.error("Gagal simpan Audit ke IDB:", err));
+    const s = get();
+    upsertRingkasanKelurahan({
+      kelurahan: s.poskoAktif,
+      kecamatan: s.sessionPosko?.kecamatan ?? "",
+      sudah_serah_jumlah: dedupedSudah.length,
+    }).catch(() => undefined);
   },
 
   setBulogBelumSerahRecords: (records) => {
@@ -318,9 +342,29 @@ export const useAppStore = create<AppState>((set, get) => ({
     const currentCombined = dedupeAuditRows([...get().bulogSudahSerahRecords, ...dedupedBelum]);
     set({ bulogExportRecords: currentCombined });
     simpanAuditKeDB(currentCombined).catch((err) => console.error("Gagal simpan Audit ke IDB:", err));
+    const s = get();
+    upsertRingkasanKelurahan({
+      kelurahan: s.poskoAktif,
+      kecamatan: s.sessionPosko?.kecamatan ?? "",
+      belum_serah_jumlah: dedupedBelum.length,
+    }).catch(() => undefined);
   },
 
   setCurrentActivePBP: (pbp) => set({ currentActivePBP: pbp }),
+  setAuditPenandaMap: (map) => {
+    set({ auditPenandaMap: map });
+    const values = Object.values(map);
+    const s = get();
+    upsertRingkasanKelurahan({
+      kelurahan: s.poskoAktif,
+      kecamatan: s.sessionPosko?.kecamatan ?? "",
+      verified_fisik: values.filter((v) => v === "VERIFIED").length,
+      review_fisik: values.filter((v) => v === "REVIEW").length,
+      mismatch_fisik: values.filter((v) => v === "MISMATCH").length,
+    }).catch(() => undefined);
+  },
+  setAuditFisikRecords: (rows) => set({ auditFisikRecords: rows }),
+  setPoskoYangDiload: (kel) => set({ poskoYangDiload: kel }),
 
   tambahLogPelayanan: (entry) => {
     set((s) => {
@@ -328,6 +372,17 @@ export const useAppStore = create<AppState>((set, get) => ({
       simpanLogKeDB(nextLogs).catch((err) => console.error("Gagal simpan Log ke IDB:", err));
       return { logPelayanan: nextLogs };
     });
+    const s = get();
+    const kecamatan = s.sessionPosko?.kecamatan ?? "";
+    kirimLogPelayananKeSupabase(entry, kecamatan).catch(() => undefined);
+    const sukses    = s.logPelayanan.filter((l) => l.status === "SUKSES_SALUR").length;
+    const pengaduan = s.logPelayanan.filter((l) => l.status === "ALIH_PENGADUAN").length;
+    upsertRingkasanKelurahan({
+      kelurahan: s.poskoAktif,
+      kecamatan,
+      total_sukses:    entry.status === "SUKSES_SALUR"    ? sukses + 1    : sukses,
+      total_pengaduan: entry.status === "ALIH_PENGADUAN"  ? pengaduan + 1 : pengaduan,
+    }).catch(() => undefined);
   },
 
   bersihkanLog: () => {
@@ -452,6 +507,9 @@ export const useAppStore = create<AppState>((set, get) => ({
       imporReports: [],
       riwayatEksporBulog: [],
       currentActivePBP: null,
+      auditPenandaMap: {},
+      auditFisikRecords: [],
+      poskoYangDiload: null,
       masterByNIK: new Map(),
       masterByName: new Map(),
       masterByKK: new Map(),

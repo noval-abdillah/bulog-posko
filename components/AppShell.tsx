@@ -17,9 +17,9 @@ import DashboardPage from "@/features/dashboard/DashboardPage";
 import PoskoPage from "@/features/posko/PoskoPage";
 import LogPage from "@/features/log/LogPage";
 import AuditPage from "@/features/audit/AuditPage";
-import DataBermasalahPage from "@/features/bermasalah/DataBermasalahPage";
 import PanduanPage from "@/features/panduan/PanduanPage";
 import ChatPage from "@/features/chat/ChatPage";
+import SupervisorPage from "@/features/supervisor/SupervisorPage";
 import AICopilotModal from "@/components/ui/AICopilotModal";
 
 export default function AppShell() {
@@ -63,7 +63,7 @@ export default function AppShell() {
 
         tambahToast(
           toastType,
-          `💬 Pesan Baru [Posko ${newMsg.posko}]: "${truncatedPesan}" (Klik untuk buka Chat)`,
+          `Pesan Baru [Posko ${newMsg.posko}]: "${truncatedPesan}" (Klik untuk buka Chat)`,
           "chat"
         );
       }
@@ -147,9 +147,9 @@ export default function AppShell() {
             {activeTab === "posko"      && <PoskoPage />}
             {activeTab === "log"        && <LogPage />}
             {activeTab === "audit"      && <AuditPage />}
-            {activeTab === "bermasalah" && <DataBermasalahPage />}
             {activeTab === "panduan"    && <PanduanPage />}
             {activeTab === "chat"       && <ChatPage />}
+            {activeTab === "supervisor" && <SupervisorPage />}
           </div>
         </main>
       </div>

@@ -9,7 +9,6 @@ import { useAppStore } from "@/store/appStore";
 import { aiCopilotQuery } from "@/lib/ai";
 import { Button } from "@/components/ui/Button";
 import { cleanStr, cleanNum, fixNIK } from "@/lib/utils";
-import type { ActiveTab } from "@/types";
 
 interface ChatMessage {
   id: string;
@@ -30,17 +29,20 @@ function renderAiMessageContent(
     const textBefore = content.substring(lastIdx, match.index);
     if (textBefore) parts.push(<span key={lastIdx}>{textBefore}</span>);
 
-    const targetQuery = match[1].trim();
-    const targetName = match[2].trim();
-    const noUrut = match[3]?.trim();
+    const rawTarget = match[1].trim().replace(/[`*_]/g, "");
+    const targetName = match[2].trim().replace(/[`*_]/g, "");
+    const noUrut = cleanNum(match[3]).slice(0, 6);
+    const nik = fixNIK(rawTarget);
+    const targetQuery = noUrut || (nik.length === 16 ? nik : rawTarget);
 
     parts.push(
       <button
         key={match.index}
         onClick={() => onVerifyClick(targetQuery)}
-        className="inline-flex items-center gap-1.5 my-1 mx-1 px-3 py-1 bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white font-extrabold rounded-xl text-[11px] shadow-2xs transition touch-manipulation cursor-pointer"
+        className="inline-flex items-center gap-1.5 my-1 mx-1 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white font-extrabold rounded-xl text-[11px] shadow-2xs transition touch-manipulation cursor-pointer"
       >
-        <span>🔍 Buka di Meja Posko {noUrut ? `(No. ${noUrut})` : `(${targetName})`}</span>
+        <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        <span>Buka di Meja Posko {noUrut ? `(No. ${noUrut})` : `(${targetName})`}</span>
       </button>
     );
 
@@ -57,10 +59,6 @@ export default function AICopilotModal() {
   const [isOpen, setIsOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [loading, setLoading] = useState(false);
-  const [customApiKey, setCustomApiKey] = useState("");
-  const [customModel, setCustomModel] = useState("SuperAdmin");
-  const [customBaseUrl, setCustomBaseUrl] = useState("http://127.0.0.1:20128/v1");
-  const [showKeyInput, setShowKeyInput] = useState(false);
 
   const poskoAktif            = useAppStore((s) => s.poskoAktif);
   const sessionPosko          = useAppStore((s) => s.sessionPosko);
@@ -85,15 +83,6 @@ export default function AICopilotModal() {
   ]);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    const savedKey = localStorage.getItem("ninerouter_api_key") ?? "";
-    if (savedKey) setCustomApiKey(savedKey);
-    const savedModel = localStorage.getItem("ninerouter_model") ?? "";
-    if (savedModel) setCustomModel(savedModel);
-    const savedBaseUrl = localStorage.getItem("ninerouter_base_url") ?? "";
-    if (savedBaseUrl) setCustomBaseUrl(savedBaseUrl);
-  }, []);
 
   const contextData = useMemo(() => {
     const sukses = logPelayanan.filter((l) => l.status === "SUKSES_SALUR").length;
@@ -306,21 +295,6 @@ export default function AICopilotModal() {
     setIsOpen(false);
   }
 
-  function handleSaveKey(key: string) {
-    setCustomApiKey(key);
-    localStorage.setItem("ninerouter_api_key", key);
-  }
-
-  function handleSaveModel(modelName: string) {
-    setCustomModel(modelName);
-    localStorage.setItem("ninerouter_model", modelName);
-  }
-
-  function handleSaveBaseUrl(url: string) {
-    setCustomBaseUrl(url);
-    localStorage.setItem("ninerouter_base_url", url);
-  }
-
   async function handleSend(textToSend?: string) {
     const q = (textToSend || query).trim();
     if (!q || loading) return;
@@ -340,14 +314,7 @@ export default function AICopilotModal() {
         .filter((m) => m.id !== "welcome")
         .map((m) => ({ role: m.role, content: m.content }));
 
-      const aiReply = await aiCopilotQuery(
-        q,
-        contextData,
-        history,
-        customApiKey || undefined,
-        customModel || undefined,
-        customBaseUrl || undefined
-      );
+      const aiReply = await aiCopilotQuery(q, contextData, history);
 
       const aiMsg: ChatMessage = {
         id: Math.random().toString(36).slice(2),
@@ -361,7 +328,7 @@ export default function AICopilotModal() {
       const errorResponse: ChatMessage = {
         id: Math.random().toString(36).slice(2),
         role: "assistant",
-        content: `⚠️ **Error AI**: ${errMsg}\n\n*Petunjuk: Pastikan API Key 9router telah diset di server atau lewat tombol ⚙️ Pengaturan Key.*`,
+        content: `**Error AI**: ${errMsg}\n\n*Petunjuk: Pastikan tunnel 9router aktif dan endpoint server dapat dijangkau.*`,
       };
       setMessages((prev) => [...prev, errorResponse]);
     } finally {
@@ -377,7 +344,7 @@ export default function AICopilotModal() {
         className="fixed bottom-6 right-6 z-40 flex items-center gap-2.5 px-4 py-3 bg-gradient-to-r from-bulog-blue via-bulog-dark to-slate-900 text-white rounded-full shadow-2xl hover:scale-105 active:scale-95 transition-all border border-sky-400/40 touch-manipulation group"
         aria-label="Tanya AI Copilot"
       >
-        <span className="text-xl group-hover:rotate-12 transition-transform">🤖</span>
+        <svg className="w-5 h-5 group-hover:rotate-12 transition-transform" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="5" y="7" width="14" height="12" rx="2"/><path d="M12 7V4M8 11h.01M16 11h.01M9 15h6"/></svg>
         <span className="text-xs font-black tracking-wide hidden sm:inline">AI Copilot</span>
         <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse" />
       </button>
@@ -390,7 +357,7 @@ export default function AICopilotModal() {
             <div className="px-5 py-4 bg-gradient-to-r from-slate-900 via-bulog-dark to-bulog-blue text-white flex items-center justify-between flex-shrink-0">
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 rounded-2xl bg-white/10 backdrop-blur-md flex items-center justify-center text-xl border border-white/20">
-                  🤖
+                  <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="5" y="7" width="14" height="12" rx="2"/><path d="M12 7V4M8 11h.01M16 11h.01M9 15h6"/></svg>
                 </div>
                 <div>
                   <h3 className="text-sm font-black flex items-center gap-2">
@@ -405,67 +372,17 @@ export default function AICopilotModal() {
                 </div>
               </div>
 
-              <div className="flex items-center gap-1">
-                <button
-                  onClick={() => setShowKeyInput(!showKeyInput)}
-                  title="Pengaturan API Key 9router"
-                  className="p-2 text-sky-200 hover:text-white rounded-xl hover:bg-white/10 transition text-xs"
-                >
-                  ⚙️ Key
-                </button>
-                <button
-                  onClick={() => setIsOpen(false)}
-                  className="p-2 text-sky-200 hover:text-white rounded-xl hover:bg-white/10 transition"
-                  aria-label="Tutup Copilot"
-                >
-                  <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <line x1="18" y1="6" x2="6" y2="18" />
-                    <line x1="6" y1="6" x2="18" y2="18" />
-                  </svg>
-                </button>
-              </div>
+              <button
+                onClick={() => setIsOpen(false)}
+                className="p-2 text-sky-200 hover:text-white rounded-xl hover:bg-white/10 transition"
+                aria-label="Tutup Copilot"
+              >
+                <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <line x1="18" y1="6" x2="6" y2="18" />
+                  <line x1="6" y1="6" x2="18" y2="18" />
+                </svg>
+              </button>
             </div>
-
-            {/* Config API Key & Model Drawer (Optional Override) */}
-            {showKeyInput && (
-              <div className="px-4 py-3 bg-slate-900 text-white text-xs border-b border-slate-800 space-y-2 animate-fade-in-up">
-                <div className="flex justify-between items-center">
-                  <span className="font-bold text-sky-300 text-[11px]">⚙️ Pengaturan 9router AI:</span>
-                  <button onClick={() => setShowKeyInput(false)} className="text-[10px] text-slate-400 hover:text-white">Tutup</button>
-                </div>
-                <div>
-                  <label className="block text-[10px] text-slate-400 mb-1">Base URL 9router (Default: http://127.0.0.1:20128/v1):</label>
-                  <input
-                    type="text"
-                    value={customBaseUrl}
-                    onChange={(e) => handleSaveBaseUrl(e.target.value)}
-                    placeholder="Contoh: http://127.0.0.1:20128/v1"
-                    className="w-full px-3 py-1.5 bg-slate-800 border border-slate-700 rounded-xl text-xs font-mono text-white focus:outline-none focus:ring-1 focus:ring-sky-400"
-                  />
-                </div>
-                <div>
-                  <label className="block text-[10px] text-slate-400 mb-1">Combo / Model ID (Default: SuperAdmin):</label>
-                  <input
-                    type="text"
-                    value={customModel}
-                    onChange={(e) => handleSaveModel(e.target.value)}
-                    placeholder="Contoh: SuperAdmin"
-                    className="w-full px-3 py-1.5 bg-slate-800 border border-slate-700 rounded-xl text-xs font-mono text-white focus:outline-none focus:ring-1 focus:ring-sky-400"
-                  />
-                </div>
-                <div>
-                  <label className="block text-[10px] text-slate-400 mb-1">API Key (Opsional):</label>
-                  <input
-                    type="password"
-                    value={customApiKey}
-                    onChange={(e) => handleSaveKey(e.target.value)}
-                    placeholder="Masukkan sk-xxxx-api-key-9router..."
-                    className="w-full px-3 py-1.5 bg-slate-800 border border-slate-700 rounded-xl text-xs text-white focus:outline-none focus:ring-1 focus:ring-sky-400"
-                  />
-                </div>
-                <p className="text-[9px] text-slate-400">Tersimpan di browser lokal Anda.</p>
-              </div>
-            )}
 
             {/* Quick Action Chips */}
             <div className="p-3 bg-slate-100/80 border-b border-slate-200 flex gap-2 overflow-x-auto text-[11px] flex-shrink-0">
@@ -473,37 +390,37 @@ export default function AICopilotModal() {
                 onClick={() => handleSend("Tampilkan daftar sisa warga PBP yang BELUM MENGAMBIL BERAS urut No. BAST.")}
                 className="px-2.5 py-1 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-lg whitespace-nowrap shadow-2xs transition"
               >
-                📋 Sisa PBP Belum Ambil (No. BAST)
+                Sisa PBP Belum Ambil (No. BAST)
               </button>
               <button
                 onClick={() => handleSend("Lakukan pemindaian 100% full scan BAST PDF vs Master Data 142k acuan utama untuk mencari UNDANGAN NYASAR di posko ini.")}
                 className="px-2.5 py-1 bg-rose-600 hover:bg-rose-700 text-white font-bold rounded-lg whitespace-nowrap shadow-2xs transition"
               >
-                🚨 Cari Undangan Nyasar (Master 142k)
+                Cari Undangan Nyasar (Master 142k)
               </button>
               <button
                 onClick={() => handleSend("Cari dan tampilkan daftar warga PBP yang BELUM AMBIL BERAS yang status fotonya KURANG FOTO / BELUM DIVERIFIKASI di Excel Bulog beserta No. Urut BAST-nya.")}
                 className="px-2.5 py-1 bg-amber-600 hover:bg-amber-700 text-white font-bold rounded-lg whitespace-nowrap shadow-2xs transition"
               >
-                📸 PBP Belum Ambil Kurang Foto (No. BAST)
+                PBP Belum Ambil Kurang Foto (No. BAST)
               </button>
               <button
                 onClick={() => handleSend("Audit dan cari kejanggalan atau hal di luar SOP dari file Excel Web Bulog (potensi TTD nyasar, NIK pengganti kosong, pengganti non-DTKS).")}
                 className="px-2.5 py-1 bg-violet-600 hover:bg-violet-700 text-white font-bold rounded-lg whitespace-nowrap shadow-2xs transition"
               >
-                ⚠️ Audit Kejanggalan SOP Bulog
+                Audit Kejanggalan SOP Bulog
               </button>
               <button
                 onClick={() => handleSend("Bagaimana ringkasan SOP penyaluran beras 30 Kg di meja posko?")}
                 className="px-2.5 py-1 bg-white hover:bg-slate-200 text-slate-800 font-bold rounded-lg whitespace-nowrap border border-slate-300 shadow-2xs transition"
               >
-                📖 SOP Salur 30Kg
+                SOP Salur 30Kg
               </button>
               <button
                 onClick={() => handleSend("Berikan analisis ringkasan data realisasi posko saat ini.")}
                 className="px-2.5 py-1 bg-white hover:bg-slate-200 text-slate-800 font-bold rounded-lg whitespace-nowrap border border-slate-300 shadow-2xs transition"
               >
-                📊 Analisis Posko
+                Analisis Posko
               </button>
             </div>
 
@@ -519,7 +436,11 @@ export default function AICopilotModal() {
                       m.role === "user" ? "bg-bulog-blue text-white" : "bg-sky-100 text-sky-800 font-bold border border-sky-300"
                     }`}
                   >
-                    {m.role === "user" ? "👤" : "🤖"}
+                    {m.role === "user" ? (
+                      <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                    ) : (
+                      <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="5" y="7" width="14" height="12" rx="2"/><path d="M12 7V4M8 11h.01M16 11h.01M9 15h6"/></svg>
+                    )}
                   </div>
                   <div
                     className={`max-w-[85%] p-3.5 rounded-2xl text-xs leading-relaxed ${
@@ -540,7 +461,9 @@ export default function AICopilotModal() {
               ))}
               {loading && (
                 <div className="flex gap-2.5 items-center text-xs text-slate-500">
-                  <div className="w-7 h-7 rounded-xl bg-sky-100 flex items-center justify-center text-xs border border-sky-300">🤖</div>
+                  <div className="w-7 h-7 rounded-xl bg-sky-100 flex items-center justify-center text-xs border border-sky-300">
+                    <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="5" y="7" width="14" height="12" rx="2"/><path d="M12 7V4M8 11h.01M16 11h.01M9 15h6"/></svg>
+                  </div>
                   <div className="px-3 py-2 bg-white border border-slate-200 rounded-2xl flex items-center gap-2">
                     <span className="w-2 h-2 rounded-full bg-sky-500 animate-ping" />
                     <span className="font-semibold text-[11px] text-slate-600">AI sedang berpikir & menyusun jawaban...</span>

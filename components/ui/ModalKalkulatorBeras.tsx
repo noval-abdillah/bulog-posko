@@ -99,8 +99,8 @@ export default function ModalKalkulatorBeras({ onClose }: ModalKalkulatorBerasPr
     let textWA = "";
     if (mode === "pbp_ke_beras") {
       textWA = `*LAPORAN STOK RETUR LOGISTIK BERAS PBP*
-📍 *Posko:* ${poskoAktif}
-📅 *Tanggal:* ${tgl}
+*Posko:* ${poskoAktif}
+*Tanggal:* ${tgl}
 
 • *Sisa PBP Belum Ambil:* ${pbpCount.toLocaleString("id-ID")} PBP
 • *Total Volume Beras:* ${totalKg.toLocaleString("id-ID")} Kg (${totalTon} Ton)
@@ -111,8 +111,8 @@ export default function ModalKalkulatorBeras({ onClose }: ModalKalkulatorBerasPr
 _Laporan dibuat otomatis dari Kalkulator Logistik Bulog Posko_`;
     } else {
       textWA = `*LAPORAN STOK OPNAME FISIK KARUNG BERAS*
-📍 *Posko:* ${poskoAktif}
-📅 *Tanggal:* ${tgl}
+*Posko:* ${poskoAktif}
+*Tanggal:* ${tgl}
 
 • *Fisik Karung 10 Kg:* ${karungCount.toLocaleString("id-ID")} Karung
 • *Ekuivalen Jatah PBP:* ${pbpHasilKarung.toLocaleString("id-ID")} PBP (${(pbpHasilKarung * 30).toLocaleString("id-ID")} Kg)
@@ -166,7 +166,7 @@ _Laporan dibuat otomatis dari Kalkulator Logistik Bulog Posko_`;
                 : "bg-white text-slate-700 border border-slate-200 hover:bg-slate-100"
             }`}
           >
-            Sisa PBP ➔ Volume Beras (Kg)
+            Sisa PBP &gt; Volume Beras (Kg)
           </button>
           <button
             onClick={() => setMode("karung_ke_pbp")}
@@ -176,7 +176,7 @@ _Laporan dibuat otomatis dari Kalkulator Logistik Bulog Posko_`;
                 : "bg-white text-slate-700 border border-slate-200 hover:bg-slate-100"
             }`}
           >
-            Stok Karung ➔ Jatah PBP
+            Stok Karung &gt; Jatah PBP
           </button>
         </div>
 
@@ -194,7 +194,7 @@ _Laporan dibuat otomatis dari Kalkulator Logistik Bulog Posko_`;
                     onClick={handleTarikSisaSistem}
                     className="text-[11px] text-bulog-blue hover:underline font-bold flex items-center gap-1"
                   >
-                    ⚡ Tarik Sisa Posko Ini
+                    Tarik Sisa Posko Ini
                   </button>
                 </div>
                 <div className="relative">

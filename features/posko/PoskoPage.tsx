@@ -7,7 +7,7 @@
 import { useState, useRef, useEffect, useCallback, useMemo } from "react";
 import { useAppStore } from "@/store/appStore";
 import { jalankanPengecekan } from "@/services/verifikasi";
-import { cleanStr } from "@/lib/utils";
+import { cleanStr, fixNIK } from "@/lib/utils";
 import { useToast } from "@/components/ui/Toast";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
@@ -50,6 +50,8 @@ export default function PoskoPage() {
   const [deepMatching, setDeepMatching] = useState(false);
 
   const inputRef = useRef<HTMLInputElement>(null);
+
+  const logPelayanan   = useAppStore((s) => s.logPelayanan);
 
   const poskoBastRecords = useMemo(() => {
     const cleanPosko = cleanStr(poskoAktif);
@@ -145,7 +147,7 @@ export default function PoskoPage() {
     const file = e.target.files?.[0];
     if (!file) return;
     setOcrLoading(true);
-    toast.info("🤖 AI Vision 9router sedang membaca KTP/BAST...");
+    toast.info("AI Vision 9router sedang membaca KTP/BAST...");
     try {
       const base64 = await new Promise<string>((resolve, reject) => {
         const reader = new FileReader();
@@ -154,14 +156,13 @@ export default function PoskoPage() {
         reader.readAsDataURL(file);
       });
 
-      const customKey = localStorage.getItem("ninerouter_api_key") ?? undefined;
-      const customModel = localStorage.getItem("ninerouter_model") ?? undefined;
-      const res = await aiScanOcrKtp(base64, customKey, customModel);
+      const res = await aiScanOcrKtp(base64);
 
-      const targetSearch = res.nik || res.nama || "";
+      const nik = fixNIK(res.nik);
+      const targetSearch = nik.length === 16 ? nik : res.nama || "";
       if (targetSearch) {
         setQuery(targetSearch);
-        toast.sukses(`AI OCR Berhasil: NIK ${res.nik || "—"} / Nama: ${res.nama || "—"}`);
+        toast.sukses(`AI OCR Berhasil: NIK ${nik || "-"} / Nama: ${res.nama || "-"}`);
         setTimeout(() => {
           const rawQ = targetSearch.trim();
           const hasil = jalankanPengecekan(
@@ -191,13 +192,11 @@ export default function PoskoPage() {
   async function handleAiDeepMatch() {
     if (!query.trim() || masterRecords.length === 0) return;
     setDeepMatching(true);
-    toast.info("🤖 AI 9router sedang membandingkan kemiripan typo nama...");
+    toast.info("AI 9router sedang membandingkan kemiripan typo nama...");
 
     try {
       const candidateList = masterRecords.slice(0, 100).map((m) => ({ NAMA: m.NAMA, NIK: m.NIK, KEL: m.KEL_NAME }));
-      const customKey = localStorage.getItem("ninerouter_api_key") ?? undefined;
-      const customModel = localStorage.getItem("ninerouter_model") ?? undefined;
-      const res = await aiDeepMatchName(query, candidateList, customKey, customModel);
+      const res = await aiDeepMatchName(query, candidateList);
 
       if (res.bestMatchIndex != null && candidateList[res.bestMatchIndex]) {
         const matchedItem = masterRecords[res.bestMatchIndex];
@@ -216,20 +215,59 @@ export default function PoskoPage() {
     }
   }
 
+  const poskoLogPelayanan = useMemo(() => {
+    const cleanPosko = cleanStr(poskoAktif);
+    return logPelayanan.filter((l) => {
+      const lPosko = cleanStr(l.posko || "");
+      return !lPosko || !cleanPosko || lPosko.includes(cleanPosko) || cleanPosko.includes(lPosko);
+    });
+  }, [logPelayanan, poskoAktif]);
+
+  const suksesCount   = poskoLogPelayanan.filter((l) => l.status === "SUKSES_SALUR").length;
+  const pengaduanCount = poskoLogPelayanan.filter((l) => l.status === "ALIH_PENGADUAN").length;
+
   return (
     <div className="space-y-5">
+      {/* Header Cockpit Meja Posko */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white p-4 sm:p-5 rounded-2xl border border-slate-200 shadow-xs">
+        <div>
+          <div className="flex items-center gap-2 flex-wrap">
+            <h1 className="text-xl font-black text-slate-900">Meja Posko Pelayanan</h1>
+            <span className="text-xs bg-bulog-blue/10 text-bulog-blue px-2.5 py-0.5 rounded-full font-bold border border-bulog-blue/20">
+              Posko {poskoAktif}
+            </span>
+          </div>
+          <p className="text-xs text-slate-500 mt-1">
+            Verifikasi penerima hak, pencocokan barcode BAST, AI Vision KTP, &amp; eksekusi penyerahan beras 30 Kg.
+          </p>
+        </div>
+
+        <div className="flex items-center gap-2 flex-shrink-0">
+          <div className="px-3 py-1.5 bg-emerald-50 border border-emerald-200 rounded-xl text-center">
+            <p className="text-[10px] font-bold text-emerald-700 uppercase tracking-wide">Sukses Salur</p>
+            <p className="text-sm font-black text-emerald-800">{suksesCount} PBP</p>
+          </div>
+          <div className="px-3 py-1.5 bg-amber-50 border border-amber-200 rounded-xl text-center">
+            <p className="text-[10px] font-bold text-amber-700 uppercase tracking-wide">Pengaduan</p>
+            <p className="text-sm font-black text-amber-800">{pengaduanCount} PBP</p>
+          </div>
+        </div>
+      </div>
+
       {/* Stepper + Upload */}
       <FileUploadPanel />
 
-      {/* Cockpit scan */}
+      {/* Cockpit scan & search */}
       <Card>
-        <div className="flex items-center gap-2 mb-4">
-          <div className="w-8 h-8 rounded-lg bg-bulog-orange/10 flex items-center justify-center text-bulog-orange flex-shrink-0">
-            <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M7 8h10M7 12h4M7 16h8"/></svg>
-          </div>
-          <div>
-            <h2 className="text-sm font-bold text-slate-900">Pencarian &amp; Scan Barcode</h2>
-            <p className="text-xs text-slate-500">Scan barcode BAST, ketik NIK, nama, atau nomor urut</p>
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-2.5">
+            <div className="w-9 h-9 rounded-xl bg-bulog-orange/10 flex items-center justify-center text-bulog-orange flex-shrink-0 border border-bulog-orange/20">
+              <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M7 8h10M7 12h4M7 16h8"/></svg>
+            </div>
+            <div>
+              <h2 className="text-sm font-bold text-slate-900">Pencarian &amp; Scan Barcode</h2>
+              <p className="text-xs text-slate-500">Scan barcode BAST, ketik NIK 16-digit, Nama Lengkap, atau No. Urut Undangan</p>
+            </div>
           </div>
         </div>
 
@@ -245,10 +283,10 @@ export default function PoskoPage() {
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && cekData()}
-              placeholder="Scan barcode BAST / NIK 16 digit / Nama Lengkap / No Urut (cth: 1095)..."
+              placeholder="Scan barcode BAST / NIK 16 digit / Nama / No Urut (cth: 1095)..."
               className={`w-full px-4 py-3.5 pl-11 border-2 rounded-xl focus:outline-none text-base font-bold uppercase tracking-wide transition touch-manipulation min-h-[48px]
                 ${readyScan
-                  ? "border-slate-300 focus:border-bulog-blue bg-white"
+                  ? "border-slate-300 focus:border-bulog-blue bg-white text-slate-900 shadow-2xs"
                   : "border-slate-200 bg-slate-50 text-slate-400 cursor-not-allowed"}`}
               disabled={!readyScan}
               autoFocus
@@ -270,21 +308,23 @@ export default function PoskoPage() {
               </button>
             )}
           </div>
+
           <div className="flex gap-2 w-full sm:w-auto flex-wrap sm:flex-nowrap">
-            <label className={`cursor-pointer flex items-center justify-center gap-1.5 px-4 py-3 bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-700 hover:to-indigo-700 active:scale-[0.98] text-white font-bold rounded-xl text-xs transition shadow-sm touch-manipulation min-h-[48px] flex-1 sm:flex-none ${!readyScan || ocrLoading ? "opacity-50 pointer-events-none" : ""}`}>
+            <label className={`cursor-pointer flex items-center justify-center gap-1.5 px-4 py-3 bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-700 hover:to-indigo-700 active:scale-[0.98] text-white font-extrabold rounded-xl text-xs transition shadow-sm touch-manipulation min-h-[48px] flex-1 sm:flex-none ${!readyScan || ocrLoading ? "opacity-50 pointer-events-none" : ""}`}>
               {ocrLoading ? (
                 <>
                   <svg className="w-4 h-4 animate-spin text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>
-                  <span>Memproses AI...</span>
+                  <span>AI OCR Vision...</span>
                 </>
               ) : (
                 <>
-                  <span className="text-base">📷</span>
+                  <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M4 7h3l1.5-2h7L17 7h3v12H4z"/><circle cx="12" cy="13" r="3"/></svg>
                   <span>AI OCR KTP</span>
                 </>
               )}
               <input type="file" accept="image/*" capture="environment" className="hidden" onChange={handleAiOcrImage} disabled={ocrLoading || !readyScan} />
             </label>
+
             <Button
               variant="primary"
               size="lg"
@@ -295,20 +335,22 @@ export default function PoskoPage() {
             >
               Cek Data
             </Button>
+
             <Button variant="secondary" size="lg" className="flex-1 sm:flex-none" onClick={bersihkan} aria-label="Reset pencarian">
               Reset
             </Button>
           </div>
         </div>
 
-        <div className="flex flex-wrap items-center justify-between text-[11px] text-slate-400 mt-2.5 gap-2">
+        {/* Shortcuts & hints */}
+        <div className="flex flex-wrap items-center justify-between text-[11px] text-slate-500 mt-3 pt-2.5 border-t border-slate-100 gap-2">
           <span>
             {readyScan
-              ? <>Mendukung: <b>Barcode BAST</b> · <b>NIK 16 digit</b> · <b>Nama Lengkap</b> · <b>No. Urut (cth: 1095)</b></>
+              ? <>Mendukung: <b>Barcode BAST</b> · <b>NIK 16-digit</b> · <b>Nama Lengkap</b> · <b>No. Urut Undangan (cth: 1095)</b></>
               : "Muat file Master atau BAST terlebih dahulu untuk mulai scanning"}
           </span>
-          <span className="flex items-center gap-1 text-bulog-blue font-medium">
-            <kbd className="px-1.5 py-0.5 bg-slate-200 text-slate-700 rounded text-[10px] font-mono">Enter</kbd> cek · <kbd className="px-1.5 py-0.5 bg-slate-200 text-slate-700 rounded text-[10px] font-mono">Esc</kbd> reset
+          <span className="flex items-center gap-1 text-bulog-blue font-semibold">
+            <kbd className="px-1.5 py-0.5 bg-slate-100 border border-slate-200 text-slate-700 rounded text-[10px] font-mono">Enter</kbd> Cek Data · <kbd className="px-1.5 py-0.5 bg-slate-100 border border-slate-200 text-slate-700 rounded text-[10px] font-mono">Esc</kbd> Reset
           </span>
         </div>
 
@@ -356,7 +398,7 @@ export default function PoskoPage() {
                   size="sm"
                   onClick={handleAiDeepMatch}
                   disabled={deepMatching || masterRecords.length === 0}
-                  icon={<span>🤖</span>}
+                  icon={<svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="5" y="7" width="14" height="12" rx="2"/><path d="M12 7V4M8 11h.01M16 11h.01M9 15h6"/></svg>}
                 >
                   {deepMatching ? "AI Matching..." : "AI Deep Match Typo"}
                 </Button>

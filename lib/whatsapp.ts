@@ -28,9 +28,9 @@ export function generatePesanWAReminderRT(
     .join("\n");
 
   return `*PEMBERITAHUAN ALOKASI BANSOS PBP BULOG*
-📍 *Posko Kelurahan:* ${kelurahan}
-🏘️ *Target Wilayah:* RT ${rtTarget}${rwTarget && rwTarget !== "—" ? ` / RW ${rwTarget}` : ""}
-📅 *Tanggal:* ${hariIni}
+*Posko Kelurahan:* ${kelurahan}
+*Target Wilayah:* RT ${rtTarget}${rwTarget && rwTarget !== "—" ? ` / RW ${rwTarget}` : ""}
+*Tanggal:* ${hariIni}
 
 Kepada Yth. *Bapak/Ibu Ketua RT ${rtTarget}${rwTarget && rwTarget !== "—" ? ` / RW ${rwTarget}` : ""}*,
 
@@ -83,14 +83,14 @@ export function generatePesanWAReminderSemuaRT(
           return `  ${idx + 1}. ${noUrutTag}*${w.nama}* (NIK: ${w.nik}) — Alamat: ${w.alamat || "—"}`;
         })
         .join("\n");
-      return `📌 *${key}* (${items.length} PBP):\n${itemLines}`;
+      return `*${key}* (${items.length} PBP):\n${itemLines}`;
     })
     .join("\n\n");
 
   return `*REKAPITULASI PBP BELUM AMBIL BERAS (SEMUA RT/RW)*
-📍 *Posko Kelurahan:* ${kelurahan}
-📅 *Tanggal:* ${hariIni}
-📊 *Total Sisa PBP Belum Ambil:* ${wargaList.length} Warga
+*Posko Kelurahan:* ${kelurahan}
+*Tanggal:* ${hariIni}
+*Total Sisa PBP Belum Ambil:* ${wargaList.length} Warga
 
 Kepada Yth. *Bapak/Ibu LMK, FKDM, serta Ketua RT & RW se-Kelurahan ${kelurahan}*,
 

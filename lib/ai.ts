@@ -3,6 +3,8 @@
  * Client library helper untuk memanggil Next.js API Route AI 9router.
  */
 
+import { fixNIK, cleanNum } from "@/lib/utils";
+
 export interface OcrKtpResult {
   nik: string;
   nama: string;
@@ -12,26 +14,37 @@ export interface OcrKtpResult {
   rw: string;
 }
 
+function cleanOcrText(value: unknown): string {
+  return String(value ?? "")
+    .replace(/^(NIK|NAMA|NO\.?\s*KK|ALAMAT|RT\/?RW|RT|RW)\s*:?\s*/i, "")
+    .trim();
+}
+
+function normalizeOcrResult(raw: Partial<OcrKtpResult>): OcrKtpResult {
+  const nik = fixNIK(raw.nik);
+  const noKK = fixNIK(raw.noKK);
+
+  return {
+    nik: nik.length === 16 ? nik : "",
+    nama: cleanOcrText(raw.nama),
+    noKK: noKK.length === 16 ? noKK : "",
+    alamat: cleanOcrText(raw.alamat),
+    rt: cleanNum(raw.rt).slice(0, 3),
+    rw: cleanNum(raw.rw).slice(0, 3),
+  };
+}
+
 export interface DeepMatchResult {
   bestMatchIndex: number | null;
   confidenceScore: number;
   alasan: string;
 }
 
-async function callAI(
-  action: string,
-  payload: unknown,
-  apiKey?: string,
-  model?: string,
-  baseUrl?: string
-): Promise<string> {
-  const savedBaseUrl = typeof window !== "undefined" ? localStorage.getItem("ninerouter_base_url") ?? "" : "";
-  const finalBaseUrl = baseUrl || savedBaseUrl || undefined;
-
+async function callAI(action: string, payload: unknown): Promise<string> {
   const res = await fetch("/api/ai", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ action, payload, apiKey, model, baseUrl: finalBaseUrl }),
+    body: JSON.stringify({ action, payload }),
   });
 
   const data = await res.json();
@@ -52,36 +65,25 @@ function extractJsonFromText(text: string): string {
   return clean;
 }
 
-export async function aiScanOcrKtp(
-  imageBase64: string,
-  apiKey?: string,
-  model?: string,
-  baseUrl?: string
-): Promise<OcrKtpResult> {
-  const text = await callAI("ocr_ktp", { imageBase64 }, apiKey, model, baseUrl);
+export async function aiScanOcrKtp(imageBase64: string): Promise<OcrKtpResult> {
+  const text = await callAI("ocr_ktp", { imageBase64 });
   const cleanJsonText = extractJsonFromText(text);
-  return JSON.parse(cleanJsonText) as OcrKtpResult;
+  return normalizeOcrResult(JSON.parse(cleanJsonText) as Partial<OcrKtpResult>);
 }
 
 export async function aiCopilotQuery(
   userQuery: string,
   contextData: unknown,
-  chatHistory: { role: "user" | "assistant"; content: string }[] = [],
-  apiKey?: string,
-  model?: string,
-  baseUrl?: string
+  chatHistory: { role: "user" | "assistant"; content: string }[] = []
 ): Promise<string> {
-  return callAI("copilot", { userQuery, contextData, chatHistory }, apiKey, model, baseUrl);
+  return callAI("copilot", { userQuery, contextData, chatHistory });
 }
 
 export async function aiGenerateAuditInsight(
   statsData: unknown,
-  poskoAktif: string,
-  apiKey?: string,
-  model?: string,
-  baseUrl?: string
+  poskoAktif: string
 ): Promise<string> {
-  return callAI("audit_insight", { statsData, poskoAktif }, apiKey, model, baseUrl);
+  return callAI("audit_insight", { statsData, poskoAktif });
 }
 
 export async function aiPersonalizeWaMsg(
@@ -89,22 +91,16 @@ export async function aiPersonalizeWaMsg(
   rtTarget: string,
   rwTarget: string,
   kelurahan: string,
-  wargaList: unknown[],
-  apiKey?: string,
-  model?: string,
-  baseUrl?: string
+  wargaList: unknown[]
 ): Promise<string> {
-  return callAI("wa_personalize", { tone, rtTarget, rwTarget, kelurahan, wargaList }, apiKey, model, baseUrl);
+  return callAI("wa_personalize", { tone, rtTarget, rwTarget, kelurahan, wargaList });
 }
 
 export async function aiDeepMatchName(
   targetName: string,
-  candidateList: unknown[],
-  apiKey?: string,
-  model?: string,
-  baseUrl?: string
+  candidateList: unknown[]
 ): Promise<DeepMatchResult> {
-  const text = await callAI("deep_match", { targetName, candidateList }, apiKey, model, baseUrl);
+  const text = await callAI("deep_match", { targetName, candidateList });
   const cleanJsonText = extractJsonFromText(text);
   return JSON.parse(cleanJsonText) as DeepMatchResult;
 }

@@ -14,16 +14,15 @@ import { NextResponse } from "next/server";
 export async function POST(req: Request) {
   try {
     const body = await req.json();
-    const { action, payload, apiKey: clientApiKey, model: clientModel, baseUrl: clientBaseUrl } = body;
-    const apiKey =
-      clientApiKey ||
-      process.env.NINEROUTER_API_KEY ||
-      process.env.NEXT_PUBLIC_NINEROUTER_API_KEY ||
-      "sk-9router-superadmin-key";
+    const { action, payload } = body;
+    const apiKey = process.env.NINEROUTER_API_KEY || "sk-72efa463d1cdd68f-7pr8z9-62aaafeb";
 
-    const rawBaseUrl = clientBaseUrl || process.env.NINEROUTER_BASE_URL || "http://127.0.0.1:20128/v1";
-    const baseUrl = rawBaseUrl.replace(/\/+$/, "");
-    const rawModel = clientModel || process.env.NINEROUTER_MODEL || "SuperAdmin";
+    const rawBaseUrl =
+      process.env.NINEROUTER_BASE_URL ||
+      "https://rmca5fb.abc-tunnel.us/v1";
+    const primaryBaseUrl = rawBaseUrl.replace(/\/+$/, "");
+    const fallbackBaseUrl = "http://localhost:20128/v1";
+    const rawModel = process.env.NINEROUTER_MODEL || "SuperAdmin";
     // Strip prefix '9router/' if passed by mistake
     const model = rawModel.replace(/^9router\//i, "");
 
@@ -34,21 +33,29 @@ export async function POST(req: Request) {
       messages = [
         {
           role: "system",
-          content: `Anda adalah AI OCR presisi tinggi untuk membaca dokumen KTP, KK, atau BAST Indonesia.
-Ekstrak informasi dan kembalikan HANYA format JSON valid tanpa markdown/codeblock format seperti ini:
+          content: `Anda adalah AI OCR Vision presisi tinggi tingkat 100% untuk membaca dokumen e-KTP, Kartu Keluarga, dan BAST Indonesia.
+ATURAN EKSTRAKSI SANGAT KETAT:
+1. Cari dan perbaiki kesalahan umum OCR karakter pada NIK/No. KK 16-digit (huruf O/o/D menjadi 0, I/l/i menjadi 1, B menjadi 8, S menjadi 5, Z menjadi 2).
+2. NIK harus berupa 16 digit angka murni tanpa spasi atau tanda baca.
+3. Jika ada beberapa kandidat angka, pilih kandidat yang berada di dekat label NIK atau NOMOR INDUK KEPENDUDUKAN.
+4. Ekstrak Nama Lengkap secara bersih tanpa kata kunci header seperti 'NAMA', 'PROVINSI', 'KOTA'.
+5. Ekstrak No. KK jika ada (16 digit angka).
+6. Ekstrak Alamat, RT (angka 1-3 digit), dan RW (angka 1-3 digit).
+
+Kembalikan HANYA format JSON valid tanpa markdown/codeblock seperti ini:
 {
-  "nik": "string 16 digit atau kosong",
-  "nama": "string nama lengkap",
-  "noKK": "string 16 digit atau kosong",
-  "alamat": "string alamat",
-  "rt": "string angka RT atau kosong",
-  "rw": "string angka RW atau kosong"
+  "nik": "string 16 digit angka murni atau kosong",
+  "nama": "string nama lengkap murni",
+  "noKK": "string 16 digit angka murni atau kosong",
+  "alamat": "string alamat lengkap",
+  "rt": "string angka RT murni (misal 005)",
+  "rw": "string angka RW murni (misal 003)"
 }`,
         },
         {
           role: "user",
           content: [
-            { type: "text", text: "Ekstrak data NIK, Nama, No. KK, Alamat, RT, RW dari gambar berikut:" },
+            { type: "text", text: "Ekstrak data NIK 16-digit, Nama, No. KK, Alamat, RT, RW dari foto KTP/KK/BAST berikut dengan akurasi 100%:" },
             {
               type: "image_url",
               image_url: {
@@ -82,14 +89,21 @@ ATURAN & TUGAS UTAMA:
    - Gunakan data 'daftarSisaBelumAmbil' dari context. Selalu tampilkan berurutan sesuai No. Urut BAST (noUrut), NIK, Nama, RT/RW, dan Alamat.
 
 5. TAG AKSI INTERAKTIF:
-   - Setiap kali Anda menyebutkan seorang warga PBP spesifik pada daftar, SELALU sertakan tag aksi khusus tepat di samping namanya dengan format:
-     [ACTION:VERIFY|NIK_ATAU_NO_URUT|NAMA_PBP|NO_URUT]
-     Contoh: "1. No. 1095 - JAENAL ABIDIN (NIK: 3172032211760001) [ACTION:VERIFY|3172032211760001|JAENAL ABIDIN|1095]"
+   - Setiap kali Anda menyebutkan seorang warga PBP spesifik pada daftar, WAJIB sertakan tag aksi khusus agar UI menampilkan tombol hijau "Buka di Meja Posko".
+   - Letakkan tag ini di BARIS SENDIRI tepat setelah baris nama/no urut warga, bukan di akhir paragraf panjang.
+   - Format wajib:
+      [ACTION:VERIFY|NIK_ATAU_NO_URUT|NAMA_PBP|NO_URUT]
+   - Jika NIK tidak jelas, pakai NO_URUT sebagai target pertama.
+   - Contoh format output:
+     20. **No. Urut BAST: 402** — **ASNAH**
+     [ACTION:VERIFY|402|ASNAH|402]
+     - **NIK**: 3172036512511001 | **RT/RW**: —/—
+     - **Status Verifikasi**: Belum diverifikasi / Kurang foto
 
 Context Data Posko Aktif:
 ${JSON.stringify(contextData ?? {}, null, 2)}
 
-Sajikan jawaban dengan format markdown yang rapi, komunikatif, dan sertakan tag [ACTION:VERIFY|...] bila menyebut nama warga.`,
+Sajikan jawaban dengan format markdown yang rapi, komunikatif, dan jangan pernah menghapus tag [ACTION:VERIFY|...] untuk warga yang disebutkan.`,
         },
         ...(chatHistory ?? []),
         { role: "user", content: userQuery },
@@ -145,9 +159,10 @@ Kembalikan HANYA format JSON valid tanpa markdown:
       return NextResponse.json({ error: "Aksi tidak dikenali." }, { status: 400 });
     }
 
-    let apiRes: Response;
+    let apiRes: Response | null = null;
+
     try {
-      apiRes = await fetch(`${baseUrl}/chat/completions`, {
+      apiRes = await fetch(`${primaryBaseUrl}/chat/completions`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -160,14 +175,40 @@ Kembalikan HANYA format JSON valid tanpa markdown:
           stream: false,
         }),
       });
-    } catch (fetchErr: unknown) {
-      const errMsg = fetchErr instanceof Error ? fetchErr.message : String(fetchErr);
-      return NextResponse.json(
-        {
-          error: `Gagal terhubung ke 9router API (${baseUrl}): ${errMsg}. Pastikan aplikasi 9router berjalan di komputer Anda atau ganti Base URL via tombol ⚙️ Pengaturan Key.`,
-        },
-        { status: 502 }
-      );
+    } catch (primaryErr) {
+      if (primaryBaseUrl !== fallbackBaseUrl) {
+        try {
+          apiRes = await fetch(`${fallbackBaseUrl}/chat/completions`, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${apiKey}`,
+            },
+            body: JSON.stringify({
+              model,
+              messages,
+              temperature: 0.2,
+              stream: false,
+            }),
+          });
+        } catch (fallbackErr: unknown) {
+          const errMsg = fallbackErr instanceof Error ? fallbackErr.message : String(fallbackErr);
+          return NextResponse.json(
+            {
+              error: `Gagal terhubung ke 9router API (${primaryBaseUrl} & ${fallbackBaseUrl}): ${errMsg}. Pastikan aplikasi 9router berjalan atau ganti Base URL via Pengaturan.`,
+            },
+            { status: 502 }
+          );
+        }
+      } else {
+        const errMsg = primaryErr instanceof Error ? primaryErr.message : String(primaryErr);
+        return NextResponse.json(
+          {
+            error: `Gagal terhubung ke 9router API (${primaryBaseUrl}): ${errMsg}. Pastikan aplikasi 9router berjalan.`,
+          },
+          { status: 502 }
+        );
+      }
     }
 
     const rawText = await apiRes.text();

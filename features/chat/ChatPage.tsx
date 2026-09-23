@@ -1,8 +1,8 @@
 /**
  * features/chat/ChatPage.tsx
  * Halaman Chat Koordinasi Antar Posko Real-time via Supabase.
- * Mendukung filter per Kecamatan, penanda tipe pesan (Normal/Peringatan/Info),
- * auto-scroll, dan visual badge per kecamatan.
+ * Mendukung Template Chat Operasional, filter per Kecamatan/Tipe,
+ * visual badge per kecamatan, dan auto-scroll.
  */
 "use client";
 
@@ -10,8 +10,6 @@ import { useState, useEffect, useRef } from "react";
 import { useAppStore } from "@/store/appStore";
 import {
   kirimPesanChat,
-  ambilRiwayatChat,
-  subscribeChat,
   KECAMATAN_LIST,
   POSKO_WARNA_MAP,
 } from "@/lib/supabase";
@@ -25,8 +23,6 @@ export default function ChatPage() {
   const sessionPosko    = useAppStore((s) => s.sessionPosko);
   const poskoAktif      = useAppStore((s) => s.poskoAktif);
   const chatMessages    = useAppStore((s) => s.chatMessages);
-  const setChatMessages = useAppStore((s) => s.setChatMessages);
-  const tambahChatMessage = useAppStore((s) => s.tambahChatMessage);
   const resetUnreadCount = useAppStore((s) => s.resetUnreadCount);
   const toast = useToast();
 
@@ -39,21 +35,22 @@ export default function ChatPage() {
 
   const chatContainerRef = useRef<HTMLDivElement>(null);
 
-  const currentPoskoName = sessionPosko?.namaPosko || poskoAktif;
+  const myPoskoName = sessionPosko?.namaPosko || poskoAktif;
+  const myKecamatan = sessionPosko?.kecamatan || "Jakarta Utara";
 
-  // Inisialisasi nama petugas khusus posko ini dari localStorage atau default session
+  // Inisialisasi nama petugas khusus posko ini dari localStorage
   useEffect(() => {
     resetUnreadCount();
-    const storageKey = `namaPetugasChat_${currentPoskoName}`;
+    const storageKey = `namaPetugasChat_${myPoskoName}`;
     const savedName = localStorage.getItem(storageKey) ?? "";
     if (savedName) {
       setNamaPetugas(savedName);
     } else {
-      setNamaPetugas(`Petugas ${currentPoskoName}`);
+      setNamaPetugas(`Petugas ${myPoskoName}`);
     }
-  }, [resetUnreadCount, currentPoskoName]);
+  }, [resetUnreadCount, myPoskoName]);
 
-  // Auto-scroll internal message container ke paling bawah saat ada pesan baru (tanpa scroll halaman outer)
+  // Auto-scroll internal message container ke paling bawah saat ada pesan baru
   useEffect(() => {
     if (chatContainerRef.current) {
       chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight;
@@ -62,7 +59,7 @@ export default function ChatPage() {
 
   function handleSaveNama(val: string) {
     setNamaPetugas(val);
-    const storageKey = `namaPetugasChat_${currentPoskoName}`;
+    const storageKey = `namaPetugasChat_${myPoskoName}`;
     localStorage.setItem(storageKey, val);
   }
 
@@ -74,24 +71,23 @@ export default function ChatPage() {
     }, 150);
   }
 
-  async function handleKirimPesan(e: React.FormEvent) {
-    e.preventDefault();
-    const text = pesanInput.trim();
+  async function handleKirimPesan(e?: React.FormEvent, customPesan?: string, customTipe?: ChatPoskoItem["tipe"]) {
+    if (e) e.preventDefault();
+    const text = (customPesan || pesanInput).trim();
     if (!text) return;
 
-    const currentPosko = currentPoskoName;
-    const currentKec   = sessionPosko?.kecamatan || "Jakarta Utara";
-    const currentNama  = namaPetugas.trim() || `Petugas ${currentPosko}`;
+    const targetTipe = customTipe || tipePesan;
+    const currentNama = namaPetugas.trim() || `Petugas ${myPoskoName}`;
 
     setKirimLoading(true);
 
     try {
       const { error } = await kirimPesanChat(
-        currentPosko,
-        currentKec,
+        myPoskoName,
+        myKecamatan,
         currentNama,
         text,
-        tipePesan
+        targetTipe
       );
 
       if (error) {
@@ -107,13 +103,57 @@ export default function ChatPage() {
     }
   }
 
+  function handleUseTemplate(templateText: string, tipe: ChatPoskoItem["tipe"]) {
+    const formatted = templateText.replace(/\[POSKO\]/g, myPoskoName);
+    setPesanInput(formatted);
+    setTipePesan(tipe);
+    toast.info("Template pesan dipilih. Klik Kirim untuk mempublikasikan.");
+  }
+
+  const templates: { label: string; text: string; tipe: ChatPoskoItem["tipe"]; badge: string }[] = [
+    {
+      label: "📦 Pelayanan Selesai",
+      text: "Posko [POSKO] telah menyelesaikan seluruh pelayanan hari ini. Data tersalur siap direkonsiliasi.",
+      tipe: "info",
+      badge: "bg-sky-100 text-sky-800",
+    },
+    {
+      label: "🚚 Armada Tiba",
+      text: "Armada truk pengangkut beras Perum Bulog telah tiba di Posko [POSKO]. Pembongkaran stok dimulai.",
+      tipe: "info",
+      badge: "bg-sky-100 text-sky-800",
+    },
+    {
+      label: "⚠️ Stok Kurang",
+      text: "Posko [POSKO] membutuhkan tambahan stok beras. Mohon tim logistik mengecek kuota pengiriman.",
+      tipe: "peringatan",
+      badge: "bg-amber-100 text-amber-800",
+    },
+    {
+      label: "📑 SPTJM Siap",
+      text: "Berkas & Rincian SPTJM Pengganti untuk Posko [POSKO] sudah lengkap diverifikasi dan siap ditandatangani.",
+      tipe: "info",
+      badge: "bg-sky-100 text-sky-800",
+    },
+    {
+      label: "📢 Undangan Nyasar",
+      text: "Terdapat warga terdaftar BAST kelurahan lain datang ke Posko [POSKO]. Mohon koordinasi antar posko.",
+      tipe: "peringatan",
+      badge: "bg-amber-100 text-amber-800",
+    },
+    {
+      label: "🚨 Kendala Web Banpang",
+      text: "Aplikasi Web Banpang/Bulog mengalami kendala akses jaringan di Posko [POSKO]. Mohon arahan supervisor.",
+      tipe: "peringatan",
+      badge: "bg-amber-100 text-amber-800",
+    },
+  ];
+
   const filteredMessages = chatMessages.filter((m) => {
     if (filterKec !== "SEMUA" && m.kecamatan !== filterKec) return false;
     if (filterTipe !== "SEMUA" && m.tipe !== filterTipe) return false;
     return true;
   });
-
-  const myPoskoName = sessionPosko?.namaPosko || poskoAktif;
 
   return (
     <div className="space-y-4 max-w-5xl mx-auto">
@@ -121,7 +161,7 @@ export default function ChatPage() {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
           <h1 className="text-xl font-black text-slate-900 flex items-center gap-2">
-            <span className="text-2xl">💬</span>
+            <svg className="w-6 h-6 text-bulog-blue" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15a4 4 0 0 1-4 4H8l-5 3V7a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4z"/></svg>
             Chat Koordinasi Antar Posko
           </h1>
           <p className="text-xs text-slate-500 mt-0.5">
@@ -129,18 +169,18 @@ export default function ChatPage() {
           </p>
         </div>
 
-        {/* Info Posko Saya */}
+        {/* Status Live Posko Saya */}
         <div className="flex items-center gap-2 bg-slate-900 text-white px-3.5 py-2 rounded-2xl text-xs shadow-sm">
           <div className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse" />
           <div>
             <span className="text-[10px] text-slate-400 block font-semibold leading-none">Posko Anda:</span>
-            <span className="font-extrabold text-white">{myPoskoName} ({sessionPosko?.kecamatan || "Koja"})</span>
+            <span className="font-extrabold text-white">{myPoskoName} ({myKecamatan})</span>
           </div>
         </div>
       </div>
 
       {/* Main Chat Card */}
-      <Card noPadding className="flex flex-col h-[calc(100dvh-180px)] sm:h-[70vh] min-h-[350px] sm:min-h-[500px] shadow-lg border border-slate-200 rounded-2xl overflow-hidden">
+      <Card noPadding className="flex flex-col h-[calc(100dvh-180px)] sm:h-[70vh] min-h-[400px] sm:min-h-[520px] shadow-lg border border-slate-200 rounded-2xl overflow-hidden">
         {/* Toolbar Filter & Identitas */}
         <div className="p-3.5 sm:p-4 bg-slate-50 border-b border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
           <div className="flex items-center gap-2 flex-wrap">
@@ -148,9 +188,9 @@ export default function ChatPage() {
             <select
               value={filterKec}
               onChange={(e) => setFilterKec(e.target.value)}
-              className="px-2.5 py-1.5 border border-slate-300 rounded-xl font-bold bg-white text-slate-800 touch-manipulation text-xs"
+              className="px-2.5 py-1.5 border border-slate-300 rounded-xl font-bold bg-white text-slate-800 touch-manipulation text-xs focus:ring-2 focus:ring-bulog-blue/30"
             >
-              <option value="SEMUA">🌐 Semua Kecamatan</option>
+              <option value="SEMUA">Semua Kecamatan</option>
               {KECAMATAN_LIST.map((k) => (
                 <option key={k} value={k}>{k}</option>
               ))}
@@ -159,12 +199,12 @@ export default function ChatPage() {
             <select
               value={filterTipe}
               onChange={(e) => setFilterTipe(e.target.value)}
-              className="px-2.5 py-1.5 border border-slate-300 rounded-xl font-bold bg-white text-slate-800 touch-manipulation text-xs"
+              className="px-2.5 py-1.5 border border-slate-300 rounded-xl font-bold bg-white text-slate-800 touch-manipulation text-xs focus:ring-2 focus:ring-bulog-blue/30"
             >
               <option value="SEMUA">Semua Tipe Pesan</option>
-              <option value="normal">💬 Teks Normal</option>
-              <option value="peringatan">⚠️ Peringatan</option>
-              <option value="info">ℹ️ Informasi</option>
+              <option value="normal">Teks Normal</option>
+              <option value="peringatan">Peringatan</option>
+              <option value="info">Informasi</option>
             </select>
           </div>
 
@@ -184,9 +224,11 @@ export default function ChatPage() {
         <div ref={chatContainerRef} className="flex-1 p-3.5 sm:p-5 overflow-y-auto overscroll-y-contain space-y-4 bg-slate-50/50">
           {filteredMessages.length === 0 ? (
             <div className="h-full flex flex-col items-center justify-center text-center p-6 text-slate-400">
-              <span className="text-4xl mb-2">💬</span>
+              <div className="w-12 h-12 rounded-2xl bg-slate-200/60 flex items-center justify-center mb-3 text-slate-500">
+                <svg className="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15a4 4 0 0 1-4 4H8l-5 3V7a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4z"/></svg>
+              </div>
               <p className="text-xs font-bold text-slate-600">Belum ada pesan pada filter ini</p>
-              <p className="text-[11px] text-slate-400 mt-1">Jadilah yang pertama mengirimkan update informasi posko Anda!</p>
+              <p className="text-[11px] text-slate-400 mt-1 max-w-xs">Gunakan template di bawah atau tulis pesan untuk membagikan info ke posko lain!</p>
             </div>
           ) : (
             filteredMessages.map((msg) => {
@@ -195,6 +237,7 @@ export default function ChatPage() {
               const formattedTime = msg.created_at
                 ? new Date(msg.created_at).toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" })
                 : "";
+              const initial = (msg.posko || "P").charAt(0).toUpperCase();
 
               return (
                 <div
@@ -202,17 +245,19 @@ export default function ChatPage() {
                   className={`flex flex-col ${isMine ? "items-end" : "items-start"} space-y-1`}
                 >
                   {/* Sender Header */}
-                  <div className="flex items-center gap-2 text-[10px] font-bold text-slate-500 px-1">
-                    <span className={`w-2 h-2 rounded-full ${badgeBg}`} />
-                    <span className="text-slate-800 font-extrabold">{msg.posko}</span>
-                    <span className="text-slate-400">({msg.kecamatan})</span>
+                  <div className="flex items-center gap-1.5 text-[10px] font-bold text-slate-500 px-1">
+                    <span className={`w-4 h-4 rounded-full ${badgeBg} text-white flex items-center justify-center text-[9px] font-black`}>
+                      {initial}
+                    </span>
+                    <span className="text-slate-800 font-black">{msg.posko}</span>
+                    <span className="text-slate-400 font-medium">({msg.kecamatan})</span>
                     <span className="text-slate-400 font-normal">• {msg.nama_petugas}</span>
                     <span className="text-slate-400 font-mono text-[9px]">{formattedTime}</span>
                   </div>
 
                   {/* Bubble Content */}
                   <div
-                    className={`max-w-[85%] sm:max-w-[70%] p-3.5 rounded-2xl text-xs shadow-2xs leading-relaxed space-y-1 ${
+                    className={`max-w-[88%] sm:max-w-[75%] p-3.5 rounded-2xl text-xs shadow-2xs leading-relaxed space-y-1 ${
                       isMine
                         ? "bg-bulog-blue text-white rounded-tr-xs"
                         : msg.tipe === "peringatan"
@@ -223,13 +268,13 @@ export default function ChatPage() {
                     }`}
                   >
                     {msg.tipe === "peringatan" && (
-                      <div className="flex items-center gap-1 text-[10px] font-black text-amber-800 uppercase tracking-wide mb-1">
+                      <div className="flex items-center gap-1 text-[10px] font-black text-amber-700 uppercase tracking-wide mb-1">
                         <svg className="w-3.5 h-3.5 text-amber-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
-                        Peringatan Penting
+                        Peringatan Operasional
                       </div>
                     )}
                     {msg.tipe === "info" && (
-                      <div className="flex items-center gap-1 text-[10px] font-black text-sky-800 uppercase tracking-wide mb-1">
+                      <div className="flex items-center gap-1 text-[10px] font-black text-sky-700 uppercase tracking-wide mb-1">
                         <svg className="w-3.5 h-3.5 text-sky-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
                         Informasi Posko
                       </div>
@@ -242,8 +287,26 @@ export default function ChatPage() {
           )}
         </div>
 
+        {/* Quick Template Chips Bar */}
+        <div className="px-3 sm:px-4 py-2 bg-slate-100/90 border-t border-slate-200/80 flex items-center gap-1.5 overflow-x-auto text-[11px]">
+          <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wide flex-shrink-0 flex items-center gap-1">
+            <svg className="w-3.5 h-3.5 text-slate-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+            Template:
+          </span>
+          {templates.map((tpl, i) => (
+            <button
+              key={i}
+              type="button"
+              onClick={() => handleUseTemplate(tpl.text, tpl.tipe)}
+              className={`px-2.5 py-1 rounded-lg font-bold border transition whitespace-nowrap shadow-2xs touch-manipulation hover:scale-[1.02] active:scale-95 ${tpl.badge}`}
+            >
+              {tpl.label}
+            </button>
+          ))}
+        </div>
+
         {/* Input Form Bar */}
-        <form onSubmit={handleKirimPesan} className="p-3 sm:p-4 bg-white border-t border-slate-200 space-y-2">
+        <form onSubmit={(e) => handleKirimPesan(e)} className="p-3 sm:p-4 bg-white border-t border-slate-200 space-y-2">
           {/* Tipe Selector Buttons */}
           <div className="flex items-center gap-2">
             <span className="text-[10px] font-bold text-slate-400 uppercase">Tipe Pesan:</span>
@@ -256,7 +319,7 @@ export default function ChatPage() {
                   : "bg-slate-100 text-slate-600 border-slate-200 hover:bg-slate-200"
               }`}
             >
-              💬 Normal
+              Normal
             </button>
             <button
               type="button"
@@ -267,7 +330,7 @@ export default function ChatPage() {
                   : "bg-amber-50 text-amber-800 border-amber-200 hover:bg-amber-100"
               }`}
             >
-              ⚠️ Peringatan
+              Peringatan
             </button>
             <button
               type="button"
@@ -278,7 +341,7 @@ export default function ChatPage() {
                   : "bg-sky-50 text-sky-800 border-sky-200 hover:bg-sky-100"
               }`}
             >
-              ℹ️ Informasi
+              Informasi
             </button>
           </div>
 
