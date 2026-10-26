@@ -4,6 +4,8 @@
 
 Wilayah sasaran: Perum BULOG Kantor Cabang Jakarta Utara, 31 kelurahan di 6 kecamatan.
 
+> **Catatan privasi:** repositori ini tidak berisi data warga asli. Seluruh contoh data menggunakan data dummy.
+
 ---
 
 ## Fitur Utama
@@ -17,7 +19,7 @@ Wilayah sasaran: Perum BULOG Kantor Cabang Jakarta Utara, 31 kelurahan di 6 keca
 
 ### Meja Posko
 
-- Upload Master Data 142k.
+- Upload Master Data (skala 142k baris).
 - Upload BAST PDF/Excel.
 - Pencarian barcode BAST, NIK, No. KK, No. Urut BAST, dan nama.
 - Proteksi 1 KK maksimal 1 alokasi 30 kg.
@@ -35,15 +37,15 @@ Wilayah sasaran: Perum BULOG Kantor Cabang Jakarta Utara, 31 kelurahan di 6 keca
 - Pesan WhatsApp RT/RW dan AI WA Personalize.
 - Cetak SPTJM dan export Excel.
 
-### AI Automation 9router
+### AI Automation
 
 - AI Copilot Posko.
 - OCR KTP, KK, dan BAST.
 - Deep Match nama typo.
 - Audit Insight.
-- Personalize pesan WhatsApp.
-- Tombol aksi AI “Buka di Meja Posko”.
-- Endpoint dan key sudah ditanam di server route, sehingga petugas tidak perlu setting manual.
+- Personalisasi pesan WhatsApp.
+- Tombol aksi AI "Buka di Meja Posko".
+- Semua panggilan AI berjalan di server route (`/api/ai`), sehingga kredensial tidak pernah sampai ke browser.
 
 ### Chat Posko
 
@@ -60,36 +62,36 @@ Wilayah sasaran: Perum BULOG Kantor Cabang Jakarta Utara, 31 kelurahan di 6 keca
 
 ## Stack Teknis
 
-- Next.js 16.3.4.
-- React 19.2.8.
-- TypeScript 5.
-- Tailwind CSS 4.
-- Zustand 5.
-- Supabase Auth dan Realtime.
-- IndexedDB lokal browser.
-- ExcelJS, SheetJS/xlsx.
-- pdf-lib, pdfjs-dist.
-- 9router AI.
+- Next.js 16
+- React 19
+- TypeScript 5
+- Tailwind CSS 4
+- Zustand 5
+- Supabase Auth dan Realtime
+- IndexedDB (penyimpanan lokal browser)
+- ExcelJS, SheetJS/xlsx
+- pdf-lib, pdfjs-dist
+- LLM gateway kompatibel OpenAI API
 
 ---
 
 ## Environment Variables
 
-`.env.local`:
+Buat file `.env.local` di root proyek (file ini **tidak** di-commit; pastikan sudah ada di `.gitignore`):
 
 ```env
-NEXT_PUBLIC_SUPABASE_URL=https://iruetylbefvfxowiabxz.supabase.co
-NEXT_PUBLIC_SUPABASE_ANON_KEY=sb_publishable_dPAxXeGxuJpm3hK14W5zTA_gJsXeIMo
-NINEROUTER_BASE_URL=https://rmca5fb.abc-tunnel.us/v1
-NINEROUTER_MODEL=SuperAdmin
-NINEROUTER_API_KEY=sk-72efa463d1cdd68f-7pr8z9-62aaafeb
+NEXT_PUBLIC_SUPABASE_URL=<url-project-supabase-anda>
+NEXT_PUBLIC_SUPABASE_ANON_KEY=<anon-key-supabase-anda>
+NINEROUTER_BASE_URL=<base-url-llm-gateway>
+NINEROUTER_MODEL=<nama-model>
+NINEROUTER_API_KEY=<api-key-llm-gateway>
 ```
 
 Catatan:
 
-- AI dipanggil dari server route `/api/ai`.
-- Pengguna tidak perlu mengisi key di UI.
-- Jika env tidak tersedia, route AI tetap memiliki fallback endpoint/key/model sesuai konfigurasi sistem.
+- AI dipanggil dari server route `/api/ai`; key hanya dibaca dari environment server.
+- Aplikasi tidak menyimpan fallback kredensial di kode. Jika env tidak lengkap, fitur AI menampilkan pesan error.
+- Aktifkan Row Level Security (RLS) di Supabase untuk semua tabel yang menyimpan data operasional.
 
 ---
 
@@ -100,11 +102,7 @@ npm install
 npm run dev
 ```
 
-Buka:
-
-```text
-http://localhost:3000
-```
+Buka `http://localhost:3000`.
 
 Build produksi:
 
@@ -116,23 +114,21 @@ npm run build
 
 ## Akun dan Role
 
-- Petugas Kelurahan: akses posko sesuai akun.
-- Supervisor: bisa memilih Posko Aktif dari seluruh kelurahan.
-- Daftar akun terdokumentasi di `AKUN.md`.
+- **Petugas Kelurahan:** akses posko sesuai akun.
+- **Supervisor:** dapat memilih Posko Aktif dari seluruh kelurahan.
+- Daftar akun dikelola secara internal dan tidak disertakan di repositori.
 
 ---
 
 ## Dokumen Terkait
 
-- `PRD.md`: Product Requirement Document terbaru.
-- `AKUN.md`: daftar akun posko.
-- `KEBUTUHAN_INTEGRASI_BULOG.md`: kebutuhan API resmi Bulog/Banpang masa depan.
-- `PRESENTASI_CLAUDE_PPT.md`: bahan Markdown siap ubah menjadi PPT di Claude.
+- `PRD.md`: Product Requirement Document.
+- `KEBUTUHAN_INTEGRASI_BULOG.md`: kebutuhan API resmi Bulog/Banpang di masa depan.
 
 ---
 
 ## Catatan Operasional
 
 - AI membantu mempercepat pekerjaan, tetapi keputusan final tetap mengikuti dokumen fisik dan SOP supervisor.
-- OCR tidak bisa dijamin sempurna untuk foto buram, gelap, miring, atau dokumen terpotong.
+- OCR tidak dapat dijamin sempurna untuk foto buram, gelap, miring, atau dokumen terpotong.
 - Integrasi API resmi Bulog belum aktif; audit Web Bulog masih berbasis upload file ekspor manual.
